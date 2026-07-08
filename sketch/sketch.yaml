@@ -1,0 +1,9 @@
+profiles:
+  default:
+    fqbn: arduino:zephyr:unoq:wait_linux_boot=app
+    platforms:
+      - platform: arduino:zephyr
+    libraries:
+      - dependency: Adafruit Unified Sensor (1.1.15)
+      - DHT sensor library (1.4.7)
+default_profile: default
