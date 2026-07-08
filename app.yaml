@@ -1,0 +1,5 @@
+name: Vaha
+icon: 🎙️
+ports: []
+bricks: []
+network_mode: "host"

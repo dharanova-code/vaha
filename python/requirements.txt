@@ -1,0 +1,9 @@
+/app/wheels/pyaudio-0.2.14-cp313-cp313-linux_aarch64.whl
+faster-whisper
+sounddevice
+noisereduce
+scipy
+notion-client
+python-dotenv
+requests
+watchdog

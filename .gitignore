@@ -1,0 +1,8 @@
+.env
+*.wav
+notes.txt
+models/
+__pycache__/
+*.pyc
+.cache/
+wheels/
