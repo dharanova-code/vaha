@@ -75,10 +75,21 @@ def speak(text):
             tmp_path = tmp.name
         subprocess.run([PIPER_EXE,"--model",PIPER_MODEL,"--output_file",tmp_path],
                        input=text.encode(), capture_output=True)
-        # Boost volume 3x using sox
+        # Boost volume 3x using Python (no sox needed)
+        import wave, array, struct
         boosted = tmp_path.replace(".wav","_boosted.wav")
-        subprocess.run(["sox",tmp_path,boosted,"vol","3.0"], capture_output=True)
-        play_file = boosted if os.path.exists(boosted) else tmp_path
+        try:
+            with wave.open(tmp_path,'rb') as wf:
+                params = wf.getparams()
+                frames = wf.readframes(wf.getnframes())
+            samples = array.array('h', frames)
+            boosted_samples = array.array('h', [max(-32768,min(32767,int(s*3.0))) for s in samples])
+            with wave.open(boosted, 'wb') as wf:
+                wf.setparams(params)
+                wf.writeframes(boosted_samples.tobytes())
+            play_file = boosted
+        except Exception:
+            play_file = tmp_path
         subprocess.run(["aplay","-D",device,"-q",play_file],
                        capture_output=True)
         print(f"[speak] output via {device}", flush=True)
