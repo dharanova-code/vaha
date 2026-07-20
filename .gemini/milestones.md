@@ -6,9 +6,12 @@
   - Formulated platform layers and verified Jest test suites.
   - **Status:** Completed
 
-- [ ] **Milestone 2: Database Foundation**
-  - Implement SQLite connection, Drizzle schema, and migrations.
-  - **Status:** Pending
+- [x] **Milestone 2: Database Foundation**
+  - Configured Expo SQLite connection singleton and WAL mode.
+  - Defined database schemas with keys and performance indexes (captures, collections, tags, capture_tags, devices, settings, sync_queue).
+  - Configured Drizzle Kit and generated initial SQL migration.
+  - Built DatabaseProvider transaction wrapper, migrations executor, and health checks.
+  - **Status:** Completed
 
 - [ ] **Milestone 3: Repository Layer**
   - Implement Capture and Tag data repository adapters.

@@ -5,7 +5,7 @@
 *   **Mission:** Offline-first, privacy-first mobile thought companion.
 *   **Target:** Mobile-first, local encryption.
 *   **Current Phase:** Phase C (Development)
-*   **Current Milestone:** Milestone 1 (Complete)
+*   **Current Milestone:** Milestone 2 (Complete)
 
 ---
 
@@ -15,9 +15,9 @@
 *   **Architecture & Design System:** DESIGN.md v3, BRAND_GUIDELINES.md, LOGO_SYSTEM.md, APP_ICON_SYSTEM.md.
 *   **UX Wireframes & Stitch Screens:** Approved layouts for Onboarding, Home (Muji Minimal), Capture Detail, Search, Insights.
 *   **Engineering Foundation (Milestone 1):** TypeScript settings, ESLint, Prettier, Custom DI Container, custom Errors, Loggers, platform abstractions, Jest test suites.
+*   **Database Foundation (Milestone 2):** SQLite database singleton, connection lifecycles, health audits, transactions, Drizzle schema definitions (captures, collections, tags, devices, settings, sync_queue), and migrations runner.
 
 ### Pending Implementations
-*   **Database:** SQLite/Drizzle schemas.
 *   **Repositories:** Capture & Tags storage adapters.
 *   **State:** Zustand application stores.
 *   **BLE Pairing:** Native Bluetooth provisioning and setup.
