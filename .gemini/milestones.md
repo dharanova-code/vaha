@@ -19,7 +19,13 @@
   - Wrapped operations in transaction boundaries and converted failures to `Result` monads.
   - **Status:** Completed
 
-- [ ] **Milestone 4: Application State**
+- [x] **Milestone 4: Application Bootstrap & Runtime Lifecycle**
+  - Implement sequential bootstrap pipeline (Load Environment, Logger, DI, Database, Migrations, Repositories, Runtime Health, storage/FS/platform stubs).
+  - Build BootstrapManager, RuntimeState singleton, AppLifecycle manager, and StartupHealth diagnostics.
+  - Wire bootstrap execution into Expo Router entrypoint rendering a minimal placeholder UI.
+  - **Status:** Completed
+
+- [ ] **Milestone 4b: Application State**
   - Define Zustand stores for user session and paired device status.
   - **Status:** Pending
 
