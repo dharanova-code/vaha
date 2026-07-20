@@ -17,3 +17,19 @@ This document tracks local Phase C architectural and design decisions made durin
 *   **Status**: Accepted
 *   **Reason**: To manage global application boot metrics, environment settings, and lifecycle status transitions without the overhead and complexity of reactive state stores (like Zustand) during early startup.
 *   **Consequences**: Simple, fast, and type-safe access to status, startup duration, current boot step, and failure records.
+
+---
+
+## Decision 0007: Tab-First Layout with Expo Router
+
+*   **Status**: Accepted
+*   **Reason**: The approved information architecture defines five top-level workspaces (Home, Captures/Library, Insights, Device, Settings). Tab-based layouts provide the most native user experience.
+*   **Consequences**: Implements `/home`, `/captures`, `/insights`, `/device`, and `/settings` under a tab-based system shell.
+
+---
+
+## Decision 0008: Error Boundary & Bootstrap Integration at Layout Root
+
+*   **Status**: Accepted
+*   **Reason**: To guarantee the application does not render visual modules in an uninitialized or broken state.
+*   **Consequences**: Root layouts compose Safe Area, status bars, and the bootstrap pipeline run, routing to `<Slot />` only on initialization success. Custom `ErrorBoundary` handles render exceptions.
