@@ -13,9 +13,11 @@
   - Built DatabaseProvider transaction wrapper, migrations executor, and health checks.
   - **Status:** Completed
 
-- [ ] **Milestone 3: Repository Layer**
-  - Implement Capture and Tag data repository adapters.
-  - **Status:** Pending
+- [x] **Milestone 3: Repository Layer**
+  - Implemented decoupled, interface-based repository layers inside each feature directory (captures, collections, tags, devices, settings, sync).
+  - Registered all repository interfaces in the DI Container.
+  - Wrapped operations in transaction boundaries and converted failures to `Result` monads.
+  - **Status:** Completed
 
 - [ ] **Milestone 4: Application State**
   - Define Zustand stores for user session and paired device status.

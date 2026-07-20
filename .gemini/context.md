@@ -5,7 +5,7 @@
 *   **Mission:** Offline-first, privacy-first mobile thought companion.
 *   **Target:** Mobile-first, local encryption.
 *   **Current Phase:** Phase C (Development)
-*   **Current Milestone:** Milestone 2 (Complete)
+*   **Current Milestone:** Milestone 3 (Complete)
 
 ---
 
@@ -16,10 +16,12 @@
 *   **UX Wireframes & Stitch Screens:** Approved layouts for Onboarding, Home (Muji Minimal), Capture Detail, Search, Insights.
 *   **Engineering Foundation (Milestone 1):** TypeScript settings, ESLint, Prettier, Custom DI Container, custom Errors, Loggers, platform abstractions, Jest test suites.
 *   **Database Foundation (Milestone 2):** SQLite database singleton, connection lifecycles, health audits, transactions, Drizzle schema definitions (captures, collections, tags, devices, settings, sync_queue), and migrations runner.
+*   **Repository Layer (Milestone 3):** Feature-first decoupled repositories (Capture, Collection, Tag, Device, Settings, Sync) implementing contracts, converting DB exceptions to `Result` monads, and registered inside the global DI Container.
 
 ### Pending Implementations
-*   **Repositories:** Capture & Tags storage adapters.
 *   **State:** Zustand application stores.
+*   **Navigation Shell:** Expo Router folder structure and tab navigation routing.
+*   **Approved UI Integration:** Incorporate approved Stitch wireframes into mobile views.
 *   **BLE Pairing:** Native Bluetooth provisioning and setup.
 *   **Capture Engine:** Core audio streaming and transcription.
 *   **Search & Insights:** Local semantic indexing.
