@@ -1,9 +1,10 @@
-import { Database } from "./Database";
+import { Database, ExpoSQLiteDatabase } from "./Database";
 import { migrate } from "drizzle-orm/expo-sqlite/migrator";
 import { Result } from "@core/utils/Result";
 import { DatabaseError } from "@core/errors/AppError";
 import { Logger } from "@core/logger/Logger";
 import migrations from "../migrations/migrations";
+import * as schema from "../schema";
 
 export class DatabaseProvider {
   private readonly dbInstance = Database.getInstance();
@@ -69,7 +70,11 @@ export class DatabaseProvider {
   }
 
   public async transaction<T>(
-    cb: (tx: any) => Promise<T>,
+    cb: (
+      tx: Parameters<
+        Parameters<ExpoSQLiteDatabase<typeof schema>["transaction"]>[0]
+      >[0],
+    ) => Promise<T>,
   ): Promise<Result<T, DatabaseError>> {
     try {
       const db = this.dbInstance.getDb();

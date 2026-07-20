@@ -9,6 +9,7 @@ module.exports = {
     "^@features/(.*)$": "<rootDir>/src/features/$1",
     "^@shared/(.*)$": "<rootDir>/src/shared/$1",
     "^@platform/(.*)$": "<rootDir>/src/platform/$1",
+    "\\.sql$": "<rootDir>/tests/mocks/sqlMock.js",
   },
   setupFilesAfterEnv: [],
 };
