@@ -9,13 +9,13 @@ export interface LocalFileSystem {
 export class ExpoLocalFileSystem implements LocalFileSystem {
   public async writeText(path: string, content: string): Promise<void> {
     await FileSystem.writeAsStringAsync(path, content, {
-      encoding: FileSystem.EncodingType.UTF8,
+      encoding: 'utf8',
     });
   }
 
   public async readText(path: string): Promise<string> {
     return await FileSystem.readAsStringAsync(path, {
-      encoding: FileSystem.EncodingType.UTF8,
+      encoding: 'utf8',
     });
   }
 

@@ -9,6 +9,41 @@ import CaptureDetailsModal from "../../app/(modals)/capture-details";
 import NotFoundScreen from "../../app/404";
 import { AuthGuardPlaceholder } from "../../src/core/navigation/NavigationGuard";
 
+// Mock react-native completely to avoid mock constructor issues in SDK 54/RN 0.81
+// The issue is that jest.requireActual('react-native') spreads mocked components
+// (ActivityIndicator, Text, etc.) that fail with constructor errors in this version.
+jest.mock("react-native", () => {
+  const mockReact = require("react");
+  const createElement = (tag: string) => ({ children }: { children?: unknown }) =>
+    mockReact.createElement(tag, null, children);
+  return {
+    StyleSheet: {
+      create: (styles: Record<string, unknown>) => styles,
+      flatten: (style: unknown) => style,
+      hairlineWidth: 1,
+    },
+    View: createElement("view"),
+    Text: createElement("text"),
+    TouchableOpacity: createElement("touchableopacity"),
+    Pressable: createElement("pressable"),
+    ScrollView: createElement("scrollview"),
+    FlatList: createElement("flatlist"),
+    Image: createElement("image"),
+    Platform: { OS: "android", select: (objs: Record<string, unknown>) => objs.android ?? objs.default },
+    Dimensions: { get: () => ({ width: 375, height: 812 }) },
+    Animated: {
+      View: createElement("animated-view"),
+      Text: createElement("animated-text"),
+      Value: jest.fn(() => ({ interpolate: jest.fn(), setValue: jest.fn() })),
+      timing: jest.fn(() => ({ start: jest.fn() })),
+      spring: jest.fn(() => ({ start: jest.fn() })),
+      createAnimatedComponent: (c: unknown) => c,
+    },
+    useColorScheme: jest.fn(() => "light"),
+    useWindowDimensions: jest.fn(() => ({ width: 375, height: 812, scale: 1, fontScale: 1 })),
+  };
+});
+
 // Mock dependencies
 jest.mock("expo-router", () => {
   return {

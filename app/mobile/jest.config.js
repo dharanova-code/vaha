@@ -10,6 +10,9 @@ module.exports = {
     "^@shared/(.*)$": "<rootDir>/src/shared/$1",
     "^@platform/(.*)$": "<rootDir>/src/platform/$1",
     "\\.sql$": "<rootDir>/tests/mocks/sqlMock.js",
+    // expo-sqlite/next was removed in SDK 54; drizzle-orm still references it internally
+    "^expo-sqlite/next$": "<rootDir>/node_modules/expo-sqlite",
   },
   setupFilesAfterEnv: [],
 };
+
