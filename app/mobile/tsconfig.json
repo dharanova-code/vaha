@@ -14,5 +14,10 @@
       "@platform/*": ["src/platform/*"]
     }
   },
+  "include": [
+    "src/**/*",
+    "app/**/*",
+    "tests/**/*"
+  ],
   "extends": "expo/tsconfig.base"
 }
