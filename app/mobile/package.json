@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
+    "drizzle-orm": "^0.32.2",
     "expo": "~51.0.0",
     "expo-device": "~6.0.2",
     "expo-file-system": "~17.0.1",
@@ -21,6 +22,7 @@
     "expo-notifications": "~0.28.9",
     "expo-router": "~3.5.24",
     "expo-secure-store": "~13.0.2",
+    "expo-sqlite": "~14.0.0",
     "react": "18.2.0",
     "react-hook-form": "^7.52.1",
     "react-native": "0.74.5",
@@ -34,6 +36,7 @@
     "@commitlint/config-conventional": "^19.2.2",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.2.45",
+    "drizzle-kit": "^0.23.2",
     "eslint": "^8.57.0",
     "eslint-config-expo": "~7.1.2",
     "husky": "^9.1.1",
