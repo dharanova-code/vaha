@@ -5,19 +5,33 @@
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@core/*": ["src/core/*"],
-      "@infra/*": ["src/infrastructure/*"],
-      "@features/*": ["src/features/*"],
-      "@shared/*": ["src/shared/*"],
-      "@platform/*": ["src/platform/*"]
+      "@core/*": [
+        "src/core/*"
+      ],
+      "@infra/*": [
+        "src/infrastructure/*"
+      ],
+      "@features/*": [
+        "src/features/*"
+      ],
+      "@shared/*": [
+        "src/shared/*"
+      ],
+      "@platform/*": [
+        "src/platform/*"
+      ]
     }
   },
   "include": [
     "src/**/*",
     "app/**/*",
-    "tests/**/*"
+    "tests/**/*",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
   ],
   "extends": "expo/tsconfig.base"
 }
