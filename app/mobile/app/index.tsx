@@ -1,10 +1,10 @@
 import React from "react";
 import { Redirect } from "expo-router";
-import { MMKV } from "react-native-mmkv";
+import { getStorageService } from "../src/infrastructure/storage/KeyValueStorage";
 import { STORAGE_KEYS } from "../src/core/constants";
 
 export default function EntryRedirect() {
-  const mmkv = new MMKV();
+  const mmkv = getStorageService();
   const isOnboarded = mmkv.getString(STORAGE_KEYS.IS_ONBOARDED) === "true";
 
   if (!isOnboarded) {

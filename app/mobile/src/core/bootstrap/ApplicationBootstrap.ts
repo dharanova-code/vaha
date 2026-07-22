@@ -58,6 +58,10 @@ export class InitializeDIStep implements BootstrapStep {
     try {
       const container = Container.getInstance();
       container.register("AppConfig", appConfig);
+      
+      const { ExpoStorage } = require("../../infrastructure/storage/KeyValueStorage");
+      await ExpoStorage.loadAll();
+      
       return Result.ok(undefined);
     } catch (e) {
       return Result.fail(new AppError("Failed to initialize DI configuration", "DI_INIT_FAILED", e));

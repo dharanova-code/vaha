@@ -3,14 +3,14 @@ import { Result } from "@core/utils/Result";
 import { CommunicationError } from "@core/errors/CommunicationError";
 import { Logger } from "@core/logger/Logger";
 import { DeviceStatus, DeviceCaptureMetadata, LiveSensorReading } from "../models/DeviceStatus";
-import { MMKV } from "react-native-mmkv";
+import { getStorageService } from "../../../infrastructure/storage/KeyValueStorage";
 
 export class MockDeviceTransport implements DeviceTransport {
   private readonly deviceUuid: string;
   private readonly logger: Logger;
   private _isConnected = true;
   private mockCaptures: DeviceCaptureMetadata[] = [];
-  private mmkv = new MMKV();
+  private mmkv = getStorageService();
   private telemetryInterval: ReturnType<typeof setInterval> | null = null;
   private activeStreams: Set<MockDeviceStream> = new Set();
 

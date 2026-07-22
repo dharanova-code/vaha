@@ -30,7 +30,7 @@
     "expo-secure-store": "~15.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
-    "react": "19.2.8",
+    "react": "19.1.0",
     "react-hook-form": "^7.52.1",
     "react-native": "0.81.5",
     "react-native-ble-plx": "^3.5.1",
@@ -60,14 +60,12 @@
     "jest-expo": "~54.0.17",
     "lint-staged": "^15.2.7",
     "prettier": "^3.3.3",
-    "react-test-renderer": "^19.0.0",
+    "react-test-renderer": "19.1.0",
     "test-renderer": "^1.2.0",
     "typescript": "~5.9.2"
   },
   "private": true,
-  "expo": {
-    "install": {
-      "exclude": ["react"]
-    }
+  "overrides": {
+    "react-dom": "19.1.0"
   }
 }

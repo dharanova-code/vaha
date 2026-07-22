@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, View, Alert, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { MMKV } from "react-native-mmkv";
+import { getStorageService } from "../src/infrastructure/storage/KeyValueStorage";
 import { Audio } from "expo-av";
 import * as Notifications from "expo-notifications";
 import {
@@ -29,7 +29,7 @@ const STEPS = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const mmkv = new MMKV();
+  const mmkv = getStorageService();
   const [step, setStep] = useState(0);
   const [captureMode, setCaptureMode] = useState<"mobile" | "uno_q">("mobile");
   
