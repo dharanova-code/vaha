@@ -51,7 +51,48 @@ export default function HomeScreen() {
         </Text>
       </View>
 
-      {/* 2. Device Status Banner */}
+      {/* 2. Quick Actions */}
+      <SectionHeader title="Quick Actions" />
+      <View style={styles.actionsRow} testID="quick-actions">
+        {quickActions.map(action => (
+          <Button
+            key={action.id}
+            variant="outline"
+            onPress={() => {
+              if (action.id === "new-capture") {
+                router.push("/(modals)/new-capture" as any);
+              } else {
+                router.push(action.route as any);
+              }
+            }}
+            accessibilityLabel={action.accessibilityLabel}
+            style={styles.actionButton}
+          >
+            {action.label}
+          </Button>
+        ))}
+      </View>
+
+      {/* 3. Continue Previous Capture */}
+      <SectionHeader title="Continuing Anchor" />
+      <View testID="continuing-anchor">
+        <Card variant="outlined" style={styles.anchorCard}>
+          <View style={styles.anchorHeader}>
+            <Tag label="unfinished" variant="warning" />
+            <Text variant="mono-bold" style={styles.anchorTime}>
+              {continuingAnchor.timestamp}
+            </Text>
+          </View>
+          <Text variant="headline-lg" style={styles.anchorTitle}>
+            {continuingAnchor.title}
+          </Text>
+          <Text variant="body-md" style={styles.anchorExcerpt}>
+            {continuingAnchor.excerpt}
+          </Text>
+        </Card>
+      </View>
+
+      {/* 4. Hardware Status */}
       <SectionHeader title="Hardware Status" />
       <View style={styles.statusSection} testID="device-status">
         {isOffline && (
@@ -86,47 +127,6 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* 3. Continuing Anchor */}
-      <SectionHeader title="Continuing Anchor" />
-      <View testID="continuing-anchor">
-        <Card variant="outlined" style={styles.anchorCard}>
-          <View style={styles.anchorHeader}>
-            <Tag label="unfinished" variant="warning" />
-            <Text variant="mono-bold" style={styles.anchorTime}>
-              {continuingAnchor.timestamp}
-            </Text>
-          </View>
-          <Text variant="headline-lg" style={styles.anchorTitle}>
-            {continuingAnchor.title}
-          </Text>
-          <Text variant="body-md" style={styles.anchorExcerpt}>
-            {continuingAnchor.excerpt}
-          </Text>
-        </Card>
-      </View>
-
-      {/* 4. Quick Actions */}
-      <SectionHeader title="Quick Actions" />
-      <View style={styles.actionsRow} testID="quick-actions">
-        {quickActions.map(action => (
-          <Button
-            key={action.id}
-            variant="outline"
-            onPress={() => {
-              if (action.id === "new-capture") {
-                router.push("/(modals)/new-capture" as any);
-              } else {
-                router.push(action.route as any);
-              }
-            }}
-            accessibilityLabel={action.accessibilityLabel}
-            style={styles.actionButton}
-          >
-            {action.label}
-          </Button>
-        ))}
-      </View>
-
       {/* 5. Daily Insights Preview */}
       <SectionHeader title="Suggested Reflection" />
       <View testID="suggested-reflection">
@@ -137,7 +137,7 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* 6. Recent Timeline — live data from SQLite, falls back to empty state */}
+      {/* 6. Recent Timeline — live data from SQLite */}
       <SectionHeader title="Recent Timeline" />
       <View style={styles.timelineList} testID="recent-timeline">
         {captures.length === 0 ? (
@@ -194,8 +194,8 @@ const styles = StyleSheet.create({
   },
   sensorRow: {
     flexDirection: "row",
-    gap: 12,
-    marginTop: 12,
+    gap: 8,
+    marginTop: 8,
   },
   anchorCard: {
     marginBottom: 24,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   anchorTime: {
     fontSize: 12,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 8,
     marginBottom: 24,
   },
   actionButton: {

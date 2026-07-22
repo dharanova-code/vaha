@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { BleProvisioningService, DiscoveredBleDevice, ProvisioningStatus, Device, State } from "../services/BleProvisioningService";
+import { createProvisioningService, ProvisioningService, DiscoveredBleDevice, ProvisioningStatus, Device, State } from "../services/BleProvisioningService";
 import { Container } from "../../../core/di/Container";
 import { Logger } from "../../../core/logger/Logger";
 import { useDeviceStore } from "../stores/deviceStore";
@@ -20,7 +20,7 @@ export function useBleProvisioning() {
   const [lastError, setLastError] = useState<string | null>(null);
   
   const isMounted = useRef(true);
-  const serviceRef = useRef<BleProvisioningService | null>(null);
+  const serviceRef = useRef<ProvisioningService | null>(null);
   const connectedDeviceRef = useRef<Device | null>(null);
   // No setDevice in DeviceStore, we just persist IP via SettingsStore
   const setServerIp = useSettingsStore((state) => state.setServerIp);
@@ -28,7 +28,7 @@ export function useBleProvisioning() {
   useEffect(() => {
     isMounted.current = true;
     const logger = Container.getInstance().resolve<Logger>("Logger");
-    serviceRef.current = new BleProvisioningService(logger);
+    serviceRef.current = createProvisioningService(logger);
 
     return () => {
       isMounted.current = false;

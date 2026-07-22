@@ -80,13 +80,20 @@ export default function DeviceScreen() {
             title="Not Connected"
             message="Enter your device IP address and press Connect to begin."
           />
-          <Button
-            variant="primary"
-            onPress={() => router.push("/(tabs)/device/provision" as any)}
-            style={{ marginHorizontal: 16, marginTop: 16 }}
-          >
-            Provision New Device
-          </Button>
+          
+          <SectionHeader title="Provisioning" />
+          <Card style={styles.card}>
+            <Text variant="body-md" style={styles.provisionText}>
+              Set up a new VAHA device on your local Wi-Fi network using Bluetooth Low Energy.
+            </Text>
+            <Button
+              variant="primary"
+              onPress={() => router.push("/(tabs)/device/provision" as any)}
+              style={styles.provisionButton}
+            >
+              Provision New Device
+            </Button>
+          </Card>
         </View>
       )}
 
@@ -183,7 +190,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
     alignItems: "center",
   },
   inputWrapper: {
@@ -202,7 +209,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 12,
+    marginTop: 8,
     paddingHorizontal: 4,
   },
   statLabel: {
@@ -211,15 +218,23 @@ const styles = StyleSheet.create({
   sensorGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 8,
     marginBottom: 24,
   },
   actionsGrid: {
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
     marginBottom: 24,
   },
   actionButton: {
     flex: 1,
+  },
+  provisionText: {
+    color: theme.colors.text.muted,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  provisionButton: {
+    width: "100%",
   },
 });
