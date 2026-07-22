@@ -66,37 +66,95 @@ def find_speaker_device():
     return "plughw:Device,0"  # fallback by name
 
 def speak(text):
-    if not text or not os.path.exists(PIPER_EXE):
+    if not text:
         return
+    print(f"[info] [speak] TTS generation started: '{text}'", flush=True)
+    if not os.path.exists(PIPER_EXE):
+        print(f"[error] [speak] Piper executable not found at {PIPER_EXE}", flush=True)
+        return
+    
+    tmp_path = None
+    boosted = None
     try:
         import tempfile
+        import wave
+        import array
+        
         device = find_speaker_device()
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp_path = tmp.name
-        subprocess.run([PIPER_EXE,"--model",PIPER_MODEL,"--output_file",tmp_path],
-                       input=text.encode(), capture_output=True)
-        # Boost volume 3x using Python (no sox needed)
-        import wave, array, struct
-        boosted = tmp_path.replace(".wav","_boosted.wav")
+        
+        # Run Piper TTS
+        print(f"[info] [speak] Generating audio with Piper at {tmp_path}", flush=True)
+        piper_cmd = [PIPER_EXE, "--model", PIPER_MODEL, "--output_file", tmp_path]
+        p_res = subprocess.run(piper_cmd, input=text.encode(), capture_output=True)
+        if p_res.returncode != 0:
+            print(f"[error] [speak] Piper failed with code {p_res.returncode}. stderr: {p_res.stderr.decode()}", flush=True)
+            return
+            
+        if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
+            print(f"[error] [speak] Generated WAV file is missing or empty.", flush=True)
+            return
+
+        # Boost volume 3x and compute duration
+        boosted = tmp_path.replace(".wav", "_boosted.wav")
+        duration = 0.0
         try:
-            with wave.open(tmp_path,'rb') as wf:
+            with wave.open(tmp_path, 'rb') as wf:
                 params = wf.getparams()
                 frames = wf.readframes(wf.getnframes())
+                n_frames = wf.getnframes()
+                frate = wf.getframerate()
+                duration = n_frames / float(frate) if frate > 0 else 0.0
+            print(f"[info] [speak] Generated audio path: {tmp_path} (Duration: {duration:.2f}s)", flush=True)
+            
             samples = array.array('h', frames)
-            boosted_samples = array.array('h', [max(-32768,min(32767,int(s*3.0))) for s in samples])
+            boosted_samples = array.array('h', [max(-32768, min(32767, int(s * 3.0))) for s in samples])
             with wave.open(boosted, 'wb') as wf:
                 wf.setparams(params)
                 wf.writeframes(boosted_samples.tobytes())
             play_file = boosted
-        except Exception:
+            print(f"[info] [speak] Boosted volume 3x saved to {boosted}", flush=True)
+        except Exception as e:
+            print(f"[warn] [speak] Volume boosting failed: {e}. Falling back to raw TTS file.", flush=True)
             play_file = tmp_path
-        subprocess.run(["aplay","-D",device,"-q",play_file],
-                       capture_output=True)
-        print(f"[speak] output via {device}", flush=True)
+
+        # Playback using aplay
+        aplay_cmd = ["aplay", "-D", device, "-q", play_file]
+        print(f"[info] [speak] Playback command: {' '.join(aplay_cmd)}", flush=True)
+        ap_res = subprocess.run(aplay_cmd, capture_output=True)
+        
+        print(f"[info] [speak] Playback exit code: {ap_res.returncode}", flush=True)
+        if ap_res.returncode != 0:
+            print(f"[error] [speak] Playback failed. stderr: {ap_res.stderr.decode()}", flush=True)
+            print(f"[info] [speak] Attempting fallback play via piped stdin (like play_chime)...", flush=True)
+            # Fallback to direct stdin piped play if raw file playback fails
+            try:
+                with wave.open(play_file, 'rb') as wf:
+                    rate = wf.getframerate()
+                    channels = wf.getnchannels()
+                    frames = wf.readframes(wf.getnframes())
+                proc = subprocess.Popen(["aplay", "-D", device,
+                                          "-r", str(rate), "-f", "S16_LE", "-c", str(channels), "-q"],
+                                         stdin=subprocess.PIPE)
+                proc.stdin.write(frames)
+                proc.stdin.close()
+                fallback_code = proc.wait()
+                print(f"[info] [speak] Fallback playback exit code: {fallback_code}", flush=True)
+            except Exception as fe:
+                print(f"[error] [speak] Fallback playback failed: {fe}", flush=True)
+        else:
+            print(f"[info] [speak] Playback finished successfully.", flush=True)
+            
     except Exception as e:
-        print(f"[speak] {e}", flush=True)
+        print(f"[error] [speak] General error in speak: {e}", flush=True)
     finally:
-        if os.path.exists(tmp_path): os.unlink(tmp_path)
+        if tmp_path and os.path.exists(tmp_path):
+            try: os.unlink(tmp_path)
+            except: pass
+        if boosted and os.path.exists(boosted):
+            try: os.unlink(boosted)
+            except: pass
 
 # ─── NOISE ────────────────────────────────────────────────────────────────────
 def clean_audio(audio, sr=MODEL_RATE):
