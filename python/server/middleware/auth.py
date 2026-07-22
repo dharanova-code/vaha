@@ -11,7 +11,6 @@ the BLE-exchanged ECDH shared secret.
 """
 from fastapi import HTTPException, Header, Depends
 from typing import Optional
-from . import config as _cfg  # avoids circular if config imports anything
 
 
 def _get_config():
