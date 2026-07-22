@@ -1,5 +1,6 @@
 import React from "react";
-import { View, ScrollView, SafeAreaView } from "react-native";
+import { View, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenProps } from "./Component.types";
 import { styles } from "./Component.styles";
 
@@ -25,7 +26,7 @@ export const Screen: React.FC<ScreenProps> = ({
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
       {withMarginThread && <View style={styles.marginThread} pointerEvents="none" />}
       {content}
     </SafeAreaView>

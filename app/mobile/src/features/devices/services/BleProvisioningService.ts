@@ -1,31 +1,5 @@
-// Conditional import for Expo Go compatibility
-export let BleManager: any;
-export let State: any;
-try {
-  const plx = require("react-native-ble-plx");
-  BleManager = plx.BleManager;
-  State = plx.State;
-} catch (e) {
-  // Fallback for Expo Go (which lacks the native module)
-  BleManager = class {
-    state = () => Promise.resolve("Unsupported");
-    onStateChange = () => ({ remove: () => {} });
-    startDeviceScan = () => {};
-    stopDeviceScan = () => {};
-    destroy = () => {};
-  };
-  State = { Unsupported: "Unsupported" };
-}
-
-// Minimal stub for Device type
-export interface Device {
-  id: string;
-  name: string | null;
-  rssi: number | null;
-  discoverAllServicesAndCharacteristics: () => Promise<Device>;
-  readCharacteristicForService: (s: string, c: string) => Promise<{ value: string | null }>;
-  writeCharacteristicWithResponseForService: (s: string, c: string, v: string) => Promise<unknown>;
-}
+import { Alert } from "react-native";
+import Constants from "expo-constants";
 import { Logger } from "../../../core/logger/Logger";
 import { Result } from "../../../core/utils/Result";
 import { Buffer } from "buffer";
@@ -34,6 +8,15 @@ export interface DiscoveredBleDevice {
   id: string;
   name: string;
   rssi: number | null;
+}
+
+export interface Device {
+  id: string;
+  name: string | null;
+  rssi: number | null;
+  discoverAllServicesAndCharacteristics: () => Promise<Device>;
+  readCharacteristicForService: (s: string, c: string) => Promise<{ value: string | null }>;
+  writeCharacteristicWithResponseForService: (s: string, c: string, v: string) => Promise<unknown>;
 }
 
 export type ProvisioningStatus = 
@@ -49,26 +32,94 @@ export type ProvisioningStatus =
   | "success" 
   | "error";
 
-export class BleProvisioningService {
+export const State = {
+  Unknown: "Unknown",
+  Resetting: "Resetting",
+  Unsupported: "Unsupported",
+  Unauthorized: "Unauthorized",
+  PoweredOff: "PoweredOff",
+  PoweredOn: "PoweredOn",
+};
+
+export interface ProvisioningService {
+  checkAdapterState(): Promise<Result<any, Error>>;
+  waitForState(state: any): Promise<void>;
+  startScanning(
+    onDeviceFound: (device: DiscoveredBleDevice) => void,
+    onError: (error: Error) => void,
+    timeoutMs?: number
+  ): void;
+  stopScanning(): void;
+  connectToDevice(deviceId: string): Promise<Result<Device, Error>>;
+  sendWifiCredentials(device: Device, ssid: string, pass: string): Promise<Result<void, Error>>;
+  verifyProvisioningStatus(device: Device): Promise<Result<{ ip: string }, Error>>;
+  disconnect(deviceId: string): Promise<void>;
+  destroy(): void;
+}
+
+export class ExpoGoProvisioningService implements ProvisioningService {
+  private showDialog() {
+    Alert.alert(
+      "Provisioning Unsupported",
+      "Device provisioning requires a Development Build.\n\nExpo Go does not include Bluetooth Low Energy native support."
+    );
+  }
+
+  public async checkAdapterState(): Promise<Result<any, Error>> {
+    this.showDialog();
+    return Result.fail(new Error("BLE is not supported inside Expo Go."));
+  }
+
+  public async waitForState(state: any): Promise<void> {
+    return Promise.resolve();
+  }
+
+  public startScanning(
+    onDeviceFound: (device: DiscoveredBleDevice) => void,
+    onError: (error: Error) => void,
+    timeoutMs?: number
+  ): void {
+    this.showDialog();
+    onError(new Error("BLE scanning is unsupported in Expo Go."));
+  }
+
+  public stopScanning(): void {}
+
+  public async connectToDevice(deviceId: string): Promise<Result<Device, Error>> {
+    return Result.fail(new Error("BLE connection is unsupported in Expo Go."));
+  }
+
+  public async sendWifiCredentials(device: Device, ssid: string, pass: string): Promise<Result<void, Error>> {
+    return Result.fail(new Error("BLE Wi-Fi credentials send is unsupported in Expo Go."));
+  }
+
+  public async verifyProvisioningStatus(device: Device): Promise<Result<{ ip: string }, Error>> {
+    return Result.fail(new Error("BLE status verification is unsupported in Expo Go."));
+  }
+
+  public async disconnect(deviceId: string): Promise<void> {}
+
+  public destroy(): void {}
+}
+
+export class NativeBleProvisioningService implements ProvisioningService {
   private manager: any;
   private logger: Logger;
-
-  // Standard VAHA UUIDs for provisioning (mock/placeholder for now)
   private readonly PROVISIONING_SERVICE_UUID = "12345678-1234-5678-1234-56789abcdef0";
   private readonly CREDENTIALS_CHAR_UUID = "12345678-1234-5678-1234-56789abcdef1";
   private readonly STATUS_CHAR_UUID = "12345678-1234-5678-1234-56789abcdef2";
-
   private scanTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
   constructor(logger: Logger) {
     this.logger = logger;
+    const { BleManager } = require("react-native-ble-plx");
     this.manager = new BleManager();
   }
 
-  async checkAdapterState(): Promise<Result<any, Error>> {
+  public async checkAdapterState(): Promise<Result<any, Error>> {
     try {
       const state = await this.manager.state();
-      if (state === State.Unsupported || String(state) === "Unsupported") {
+      if (state === "Unsupported") {
         return Result.fail(new Error("Bluetooth LE is not supported on this device."));
       }
       return Result.ok(state);
@@ -77,7 +128,7 @@ export class BleProvisioningService {
     }
   }
 
-  async waitForState(state: any): Promise<void> {
+  public async waitForState(state: any): Promise<void> {
     const currentState = await this.manager.state();
     if (currentState === state) return;
 
@@ -91,7 +142,11 @@ export class BleProvisioningService {
     });
   }
 
-  startScanning(onDeviceFound: (device: DiscoveredBleDevice) => void, onError: (error: Error) => void, timeoutMs: number = 15000) {
+  public startScanning(
+    onDeviceFound: (device: DiscoveredBleDevice) => void,
+    onError: (error: Error) => void,
+    timeoutMs: number = 15000
+  ): void {
     this.logger.info("[BLE] Starting scan for VAHA devices...");
     this.manager.startDeviceScan(null, null, (error: any, scannedDevice: any) => {
       if (error) {
@@ -103,7 +158,7 @@ export class BleProvisioningService {
       if (scannedDevice && (scannedDevice.name?.includes("VAHA") || scannedDevice.name?.includes("Uno Q"))) {
         onDeviceFound({
           id: scannedDevice.id,
-          name: scannedDevice.name,
+          name: scannedDevice.name || "VAHA Device",
           rssi: scannedDevice.rssi,
         });
       }
@@ -117,7 +172,7 @@ export class BleProvisioningService {
     }
   }
 
-  stopScanning() {
+  public stopScanning(): void {
     this.logger.info("[BLE] Stopping scan");
     this.manager.stopDeviceScan();
     if (this.scanTimeoutHandle) {
@@ -126,7 +181,7 @@ export class BleProvisioningService {
     }
   }
 
-  async connectToDevice(deviceId: string): Promise<Result<Device, Error>> {
+  public async connectToDevice(deviceId: string): Promise<Result<Device, Error>> {
     try {
       this.logger.info(`[BLE] Connecting to ${deviceId}`);
       const device = await this.manager.connectToDevice(deviceId);
@@ -139,11 +194,10 @@ export class BleProvisioningService {
     }
   }
 
-  async sendWifiCredentials(device: Device, ssid: string, pass: string): Promise<Result<void, Error>> {
+  public async sendWifiCredentials(device: Device, ssid: string, pass: string): Promise<Result<void, Error>> {
     try {
       this.logger.info(`[BLE] Sending Wi-Fi credentials to ${device.id}`);
       const payload = JSON.stringify({ ssid, pass });
-      
       const b64 = Buffer.from(payload).toString("base64");
       
       await device.writeCharacteristicWithResponseForService(
@@ -158,20 +212,17 @@ export class BleProvisioningService {
     }
   }
 
-  async verifyProvisioningStatus(device: Device): Promise<Result<{ ip: string }, Error>> {
+  public async verifyProvisioningStatus(device: Device): Promise<Result<{ ip: string }, Error>> {
     try {
       this.logger.info(`[BLE] Verifying provisioning status for ${device.id}`);
-      
       for (let i = 0; i < 15; i++) {
         const char = await device.readCharacteristicForService(
           this.PROVISIONING_SERVICE_UUID,
           this.STATUS_CHAR_UUID
         );
-        
         if (char.value) {
           const jsonStr = Buffer.from(char.value, "base64").toString("utf-8");
           const status = JSON.parse(jsonStr);
-          
           if (status.status === "connected" && status.ip) {
             this.logger.info(`[BLE] Device connected to Wi-Fi with IP ${status.ip}`);
             return Result.ok({ ip: status.ip });
@@ -179,7 +230,6 @@ export class BleProvisioningService {
             return Result.fail(new Error("Device failed to connect to Wi-Fi"));
           }
         }
-        
         await new Promise(res => setTimeout(res, 2000));
       }
       return Result.fail(new Error("Timeout waiting for Wi-Fi connection"));
@@ -189,7 +239,7 @@ export class BleProvisioningService {
     }
   }
 
-  async disconnect(deviceId: string) {
+  public async disconnect(deviceId: string): Promise<void> {
     try {
       await this.manager.cancelDeviceConnection(deviceId);
     } catch (_e) {
@@ -197,7 +247,19 @@ export class BleProvisioningService {
     }
   }
 
-  destroy() {
+  public destroy(): void {
     this.manager.destroy();
+  }
+}
+
+export function createProvisioningService(logger: Logger): ProvisioningService {
+  const isExpoGo = Constants.appOwnership === "expo";
+  if (isExpoGo) {
+    return new ExpoGoProvisioningService();
+  }
+  try {
+    return new NativeBleProvisioningService(logger);
+  } catch (e) {
+    return new ExpoGoProvisioningService();
   }
 }
