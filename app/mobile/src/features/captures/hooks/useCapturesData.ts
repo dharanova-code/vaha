@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useCaptureStore } from "../../devices/stores/captureStore";
-import { Capture } from "@infra/database/schema/captures";
+import { useCaptureStore, CaptureWithTags } from "../../devices/stores/captureStore";
 
-export type SortOrder = "newest" | "oldest";
+export type FilterType = "all" | "mobile" | "uno_q" | "synced" | "unsynced";
+export type SortOrder = "newest" | "oldest" | "alphabetical";
 
 /**
  * useCapturesData — presentation hook for the Captures library screen.
@@ -16,11 +16,11 @@ export function useCapturesData() {
     isLoading,
     isSyncing,
     loadLocalCaptures,
-    searchCaptures,
     deleteCapture,
   } = useCaptureStore();
 
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<FilterType>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 
   // Pull-to-refresh delegates directly to existing store action
@@ -30,31 +30,54 @@ export function useCapturesData() {
 
   const onClearSearch = useCallback(() => setQuery(""), []);
 
-  const toggleSort = useCallback(() => {
-    setSortOrder(prev => (prev === "newest" ? "oldest" : "newest"));
-  }, []);
-
-  // Effect for debounced search using SQLite
+  // Effect to load captures on mount
   useEffect(() => {
-    const q = query.trim();
-    if (!q) {
-      loadLocalCaptures();
-      return;
-    }
-    const timer = setTimeout(() => {
-      searchCaptures(q);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query, loadLocalCaptures, searchCaptures]);
+    loadLocalCaptures();
+  }, [loadLocalCaptures]);
 
-  // Sorting — applied directly to the captures from the store
-  const sorted = useMemo<Capture[]>(() => {
-    return [...captures].sort((a, b) => {
+  // Combined search, filter, and sort logic in memory
+  const processedCaptures = useMemo<CaptureWithTags[]>(() => {
+    let result = [...captures];
+
+    // 1. Search Query (title, transcript, tags)
+    const q = query.trim().toLowerCase();
+    if (q) {
+      result = result.filter(c => {
+        const titleMatch = c.title?.toLowerCase().includes(q) ?? false;
+        const transcriptMatch = c.transcript?.toLowerCase().includes(q) ?? false;
+        const tagsMatch = c.tags?.some(t => t.toLowerCase().includes(q)) ?? false;
+        return titleMatch || transcriptMatch || tagsMatch;
+      });
+    }
+
+    // 2. Filters (mobile vs device, synced vs unsynced)
+    if (filter === "mobile") {
+      result = result.filter(c => c.deviceId === null);
+    } else if (filter === "uno_q") {
+      result = result.filter(c => c.deviceId !== null);
+    } else if (filter === "synced") {
+      result = result.filter(c => c.syncState === "synced");
+    } else if (filter === "unsynced") {
+      result = result.filter(c => c.syncState !== "synced");
+    }
+
+    // 3. Sorting (newest, oldest, alphabetical)
+    result.sort((a, b) => {
       const tA = a.createdAt.getTime();
       const tB = b.createdAt.getTime();
-      return sortOrder === "newest" ? tB - tA : tA - tB;
+      if (sortOrder === "newest") {
+        return tB - tA;
+      } else if (sortOrder === "oldest") {
+        return tA - tB;
+      } else {
+        const titleA = a.title ?? "";
+        const titleB = b.title ?? "";
+        return titleA.localeCompare(titleB);
+      }
     });
-  }, [captures, sortOrder]);
+
+    return result;
+  }, [captures, query, filter, sortOrder]);
 
   const handleDelete = useCallback(
     async (id: number) => {
@@ -64,22 +87,19 @@ export function useCapturesData() {
   );
 
   return {
-    // List data
-    captures: sorted,
-    totalCount: captures.length,
-    // State
+    captures: processedCaptures,
+    totalCount: processedCaptures.length,
     isLoading,
     isSyncing,
     isEmpty: !isLoading && captures.length === 0,
-    isEmptySearch: !isLoading && query.trim().length > 0 && sorted.length === 0,
-    // Search
+    isEmptySearch: !isLoading && query.trim().length > 0 && processedCaptures.length === 0,
     query,
     setQuery,
     onClearSearch,
-    // Sort
+    filter,
+    setFilter,
     sortOrder,
-    toggleSort,
-    // Actions
+    setSortOrder,
     onRefresh,
     handleDelete,
   };

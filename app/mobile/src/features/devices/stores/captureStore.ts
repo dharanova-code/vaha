@@ -7,8 +7,10 @@ import { CaptureRepository } from "../../captures/repositories/CaptureRepository
 import { SyncService, SyncEvent } from "../../sync/services/SyncService";
 import { DeviceTransport } from "../transport/DeviceTransport";
 
+export type CaptureWithTags = Capture & { tags?: string[] };
+
 export interface CaptureState {
-  captures: Capture[];
+  captures: CaptureWithTags[];
   deviceCaptures: DeviceCaptureMetadata[];
   isLoading: boolean;
   isSyncing: boolean;
@@ -21,6 +23,8 @@ export interface CaptureState {
   deleteDeviceCapture: (txId: string) => Promise<void>;
   resumeSyncQueue: () => Promise<void>;
   searchCaptures: (query: string) => Promise<void>;
+  createLocalCapture: (title: string, transcript: string, tagNames: string[]) => Promise<void>;
+  updateLocalCapture: (id: number, fields: { title: string; transcript: string; tags: string[] }) => Promise<void>;
 }
 
 export const useCaptureStore = create<CaptureState>((set, get) => ({
@@ -34,8 +38,24 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
     set({ isLoading: true });
     const repo = Container.getInstance().resolve<CaptureRepository>("CaptureRepository");
     const result = await repo.findAll();
+    const tagsResult = await repo.getAllCaptureTags();
+    
     if (result.isSuccess) {
-      set({ captures: result.getValueOrThrow() as unknown as Capture[] }); // type assertion for Phase E mismatch
+      const list = result.getValueOrThrow() as CaptureWithTags[];
+      const tagsList = tagsResult.isSuccess ? tagsResult.getValueOrThrow() : [];
+      
+      const tagsMap = new Map<number, string[]>();
+      for (const t of tagsList) {
+        if (!tagsMap.has(t.captureId)) {
+          tagsMap.set(t.captureId, []);
+        }
+        tagsMap.get(t.captureId)!.push(t.tagName);
+      }
+      
+      for (const item of list) {
+        item.tags = tagsMap.get(item.id) ?? [];
+      }
+      set({ captures: list });
     }
     set({ isLoading: false });
   },
@@ -44,8 +64,24 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
     set({ isLoading: true });
     const repo = Container.getInstance().resolve<CaptureRepository>("CaptureRepository");
     const result = await repo.search(query);
+    const tagsResult = await repo.getAllCaptureTags();
+    
     if (result.isSuccess) {
-      set({ captures: result.getValueOrThrow() as unknown as Capture[] });
+      const list = result.getValueOrThrow() as CaptureWithTags[];
+      const tagsList = tagsResult.isSuccess ? tagsResult.getValueOrThrow() : [];
+      
+      const tagsMap = new Map<number, string[]>();
+      for (const t of tagsList) {
+        if (!tagsMap.has(t.captureId)) {
+          tagsMap.set(t.captureId, []);
+        }
+        tagsMap.get(t.captureId)!.push(t.tagName);
+      }
+      
+      for (const item of list) {
+        item.tags = tagsMap.get(item.id) ?? [];
+      }
+      set({ captures: list });
     }
     set({ isLoading: false });
   },
@@ -130,5 +166,47 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
     
     await client.deleteCapture(txId);
     await get().loadDeviceCaptures();
+  },
+
+  createLocalCapture: async (title: string, transcript: string, tagNames: string[]) => {
+    set({ isLoading: true });
+    const repo = Container.getInstance().resolve<CaptureRepository>("CaptureRepository");
+    
+    let finalTitle = title.trim();
+    if (!finalTitle) {
+      const match = transcript.match(/^[^.!?]+/);
+      finalTitle = match ? match[0].trim() : "Untitled Capture";
+    }
+    
+    const res = await repo.create({
+      uuid: crypto.randomUUID(),
+      title: finalTitle,
+      transcript,
+      syncState: "pending",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    
+    if (res.isSuccess) {
+      const inserted = res.getValueOrThrow();
+      await repo.updateTagsForCapture(inserted.id, tagNames);
+    }
+    
+    set({ isLoading: false });
+    await get().loadLocalCaptures();
+  },
+
+  updateLocalCapture: async (id: number, fields: { title: string; transcript: string; tags: string[] }) => {
+    set({ isLoading: true });
+    const repo = Container.getInstance().resolve<CaptureRepository>("CaptureRepository");
+    
+    await repo.update(id, {
+      title: fields.title,
+      transcript: fields.transcript,
+    });
+    
+    await repo.updateTagsForCapture(id, fields.tags);
+    set({ isLoading: false });
+    await get().loadLocalCaptures();
   }
 }));

@@ -22,4 +22,7 @@ export interface CaptureRepository {
   count(): Promise<Result<number, DatabaseError>>;
   exists(id: number): Promise<Result<boolean, DatabaseError>>;
   search(query: string): Promise<Result<Capture[], DatabaseError>>;
+  getTagsForCapture(captureId: number): Promise<Result<string[], DatabaseError>>;
+  updateTagsForCapture(captureId: number, tagNames: string[]): Promise<Result<void, DatabaseError>>;
+  getAllCaptureTags(): Promise<Result<Array<{ captureId: number; tagName: string }>, DatabaseError>>;
 }

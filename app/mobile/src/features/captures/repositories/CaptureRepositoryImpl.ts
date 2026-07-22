@@ -268,4 +268,67 @@ export class CaptureRepositoryImpl implements CaptureRepository {
       );
     }
   }
+
+  public async getTagsForCapture(captureId: number): Promise<Result<string[], DatabaseError>> {
+    try {
+      const { tags: tagsTable, captureTags } = require("@infra/database/schema/tags");
+      const results = await this.db
+        .select({ name: tagsTable.name })
+        .from(captureTags)
+        .innerJoin(tagsTable, eq(captureTags.tagId, tagsTable.id))
+        .where(eq(captureTags.captureId, captureId));
+      return Result.ok(results.map((r: any) => r.name));
+    } catch (error) {
+      return Result.fail(new DatabaseError("Failed to fetch tags for capture", error));
+    }
+  }
+
+  public async updateTagsForCapture(captureId: number, tagNames: string[]): Promise<Result<void, DatabaseError>> {
+    try {
+      const { tags: tagsTable, captureTags } = require("@infra/database/schema/tags");
+      // 1. Delete existing connections
+      await this.db.delete(captureTags).where(eq(captureTags.captureId, captureId));
+      
+      // 2. Insert tags if they don't exist and link them
+      for (const name of tagNames) {
+        const trimmed = name.trim();
+        if (!trimmed) continue;
+        
+        let tagId: number;
+        const existing = await this.db.select().from(tagsTable).where(eq(tagsTable.name, trimmed));
+        if (existing.length > 0) {
+          tagId = existing[0]!.id;
+        } else {
+          const newTag = await this.db.insert(tagsTable).values({
+            uuid: crypto.randomUUID(),
+            name: trimmed,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }).returning();
+          tagId = newTag[0]?.id || 0;
+        }
+        
+        await this.db.insert(captureTags).values({
+          captureId,
+          tagId
+        });
+      }
+      return Result.ok(undefined);
+    } catch (error) {
+      return Result.fail(new DatabaseError("Failed to update tags for capture", error));
+    }
+  }
+
+  public async getAllCaptureTags(): Promise<Result<Array<{ captureId: number; tagName: string }>, DatabaseError>> {
+    try {
+      const { tags: tagsTable, captureTags } = require("@infra/database/schema/tags");
+      const results = await this.db
+        .select({ captureId: captureTags.captureId, tagName: tagsTable.name })
+        .from(captureTags)
+        .innerJoin(tagsTable, eq(captureTags.tagId, tagsTable.id));
+      return Result.ok(results);
+    } catch (error) {
+      return Result.fail(new DatabaseError("Failed to fetch all capture tags", error));
+    }
+  }
 }

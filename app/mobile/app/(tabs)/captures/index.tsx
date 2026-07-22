@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from "react";
-import { FlatList, StyleSheet, RefreshControl, View } from "react-native";
+import { FlatList, StyleSheet, RefreshControl, View, ScrollView } from "react-native";
 import { router } from "expo-router";
 import {
   Screen,
@@ -10,11 +10,11 @@ import {
   Loading,
   Button,
   Text,
+  theme,
+  Tag
 } from "../../../src/design-system";
-import { useCapturesData } from "../../../src/features/captures/hooks/useCapturesData";
-import { useAudioRecording } from "../../../src/features/captures/hooks/useAudioRecording";
-import type { Capture } from "../../../src/infrastructure/database/schema/captures";
-import { theme } from "../../../src/design-system";
+import { useCapturesData, FilterType } from "../../../src/features/captures/hooks/useCapturesData";
+import type { CaptureWithTags } from "../../../src/features/devices/stores/captureStore";
 
 export default function CapturesScreen() {
   const {
@@ -27,13 +27,13 @@ export default function CapturesScreen() {
     query,
     setQuery,
     onClearSearch,
+    filter,
+    setFilter,
     sortOrder,
-    toggleSort,
+    setSortOrder,
     onRefresh,
     handleDelete,
   } = useCapturesData();
-
-  const { isRecording, startRecording, stopRecording, error: recordingError } = useAudioRecording();
 
   // Load captures on mount once
   useEffect(() => {
@@ -42,25 +42,27 @@ export default function CapturesScreen() {
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: Capture }) => (
-      <CaptureCard
-        key={item.uuid}
-        title={item.title ?? item.transcript?.substring(0, 40) ?? "Untitled Capture"}
-        excerpt={item.transcript ?? "No transcript available."}
-        timestamp={item.createdAt.toLocaleString()}
-        onPress={() => {
-          router.push({ pathname: "/(modals)/capture-details", params: { uuid: item.uuid } });
-        }}
-      />
-    ),
+    ({ item }: { item: CaptureWithTags }) => {
+      const sourceLabel = item.deviceId === null ? "MOBILE" : "DEVICE";
+      return (
+        <CaptureCard
+          key={item.uuid}
+          title={item.title ?? item.transcript?.substring(0, 40) ?? "Untitled Capture"}
+          excerpt={item.transcript ?? "No transcript available."}
+          timestamp={item.createdAt.toLocaleString()}
+          onPress={() => {
+            router.push({ pathname: "/(modals)/capture-details", params: { uuid: item.uuid } });
+          }}
+        />
+      );
+    },
     [],
   );
 
-  const keyExtractor = useCallback((item: Capture) => item.uuid, []);
+  const keyExtractor = useCallback((item: CaptureWithTags) => item.uuid, []);
 
   return (
     <Screen withMarginThread style={styles.container}>
-      {/* Header */}
       <SectionHeader title={`Library${totalCount > 0 ? ` (${totalCount})` : ""}`} />
 
       {/* Search + Sort toolbar */}
@@ -70,25 +72,41 @@ export default function CapturesScreen() {
             value={query}
             onChangeText={setQuery}
             onClear={onClearSearch}
-            placeholder="Search captures..."
+            placeholder="Search title, transcript, tags..."
             accessibilityLabel="Search captures"
           />
         </View>
         <Button
           variant="ghost"
-          onPress={toggleSort}
-          accessibilityLabel={`Sort ${sortOrder === "newest" ? "oldest first" : "newest first"}`}
+          onPress={() => {
+            if (sortOrder === "newest") setSortOrder("oldest");
+            else if (sortOrder === "oldest") setSortOrder("alphabetical");
+            else setSortOrder("newest");
+          }}
+          accessibilityLabel="Cycle sorting"
           style={styles.sortButton}
         >
-          {sortOrder === "newest" ? "↓ Newest" : "↑ Oldest"}
+          {sortOrder === "newest" ? "↓ Newest" : sortOrder === "oldest" ? "↑ Oldest" : "A-Z"}
         </Button>
       </View>
 
-      {recordingError && (
-        <Text variant="meta-sm" style={{ color: "red", marginBottom: 12 }}>
-          {recordingError}
-        </Text>
-      )}
+      {/* Filters Row */}
+      <View style={styles.filtersWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContent}>
+          {(["all", "mobile", "uno_q", "synced", "unsynced"] as FilterType[]).map((f) => (
+            <Button
+              key={f}
+              variant={filter === f ? "primary" : "ghost"}
+              onPress={() => setFilter(f)}
+              style={styles.filterChip}
+            >
+              <Text variant="mono-bold" color={filter === f ? "#FFF" : theme.colors.text.muted}>
+                {f.toUpperCase().replace("_", " ")}
+              </Text>
+            </Button>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Loading state */}
       {isLoading && <Loading />}
@@ -98,7 +116,7 @@ export default function CapturesScreen() {
         <EmptyState
           variant="captures"
           title="No captures yet"
-          message="Connect to your device and sync to see your voice notes here."
+          message="Connect to your device or create a manual capture to get started."
         />
       )}
 
@@ -111,9 +129,9 @@ export default function CapturesScreen() {
         />
       )}
 
-      {/* Capture list — virtualized with FlatList */}
+      {/* Capture list */}
       {!isLoading && !isEmpty && (
-        <FlatList<Capture>
+        <FlatList<CaptureWithTags>
           data={captures}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
@@ -132,11 +150,11 @@ export default function CapturesScreen() {
 
       <View style={styles.fabContainer}>
         <Button
-          variant={isRecording ? "primary" : "secondary"}
-          onPress={isRecording ? stopRecording : startRecording}
-          accessibilityLabel={isRecording ? "Stop recording" : "Start recording"}
+          variant="primary"
+          onPress={() => router.push("/(modals)/new-capture" as any)}
+          accessibilityLabel="Create manual capture"
         >
-          {isRecording ? "Stop Recording" : "Record Voice Note"}
+          New Capture
         </Button>
       </View>
     </Screen>
@@ -152,6 +170,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginBottom: 12,
+    paddingHorizontal: 24,
   },
   searchWrapper: {
     flex: 1,
@@ -159,8 +178,24 @@ const styles = StyleSheet.create({
   sortButton: {
     minWidth: 80,
   },
+  filtersWrapper: {
+    marginBottom: 16,
+    height: 40,
+  },
+  filtersContent: {
+    paddingHorizontal: 24,
+    gap: 8,
+    alignItems: "center",
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    height: 32,
+    justifyContent: "center",
+    borderRadius: 16,
+  },
   list: {
     paddingBottom: 48,
+    paddingHorizontal: 24,
   },
   footer: {
     height: 80,
