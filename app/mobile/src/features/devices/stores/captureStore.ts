@@ -178,8 +178,9 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
       finalTitle = match ? match[0].trim() : "Untitled Capture";
     }
     
+    const Crypto = require("expo-crypto");
     const res = await repo.create({
-      uuid: crypto.randomUUID(),
+      uuid: Crypto.randomUUID(),
       title: finalTitle,
       transcript,
       syncState: "pending",
