@@ -309,12 +309,19 @@ def vaha_loop():
     speak("Vaha is ready. Say Marvin to begin.")
     while True:
         if listen_for_wake_word():
+            broadcast_event("capture_started")
             play_chime()
             time.sleep(2.0)
+            broadcast_event("recording")
             audio = record_thought(device)
+            broadcast_event("capture_finished")
+            
             if audio.size == 0:
                 speak("I didn't hear anything."); continue
+                
             print(f"{_ts()}[main] Transcribing...", flush=True)
+            broadcast_event("whisper_processing")
+            
             audio_16k = resample_poly(audio,1,3).astype(np.int16)
             text = transcribe(audio_16k)
             print(f"{_ts()}[main] Heard: '{text}'", flush=True)
@@ -339,9 +346,37 @@ def vaha_loop():
             except Exception as e:
                 print(f"[main] Notion error: {e}", flush=True)
                 speak("Saved locally. Notion sync failed.")
+
+            # Save the capture to the Edge Server's CaptureService
+            try:
+                from server.services.capture_service import capture_service
+                # Get raw audio for save
+                capture_service.save_capture(
+                    audio_data=audio.tobytes(),
+                    transcript=text,
+                    sensors=sensors,
+                    sample_rate=SAMPLE_RATE,
+                    channels=1
+                )
+            except Exception as e:
+                print(f"[main] Capture save error: {e}", flush=True)
+
         time.sleep(0.1)
 
 import threading
-t = threading.Thread(target=vaha_loop, daemon=True)
-t.start()
+from server.app import run_server
+from server.services.sensor_service import sensor_service
+from server.websocket.ws_handler import broadcast_event
+
+# Start the sensor polling service
+sensor_service.start()
+
+# Start the Vaha audio loop
+t_vaha = threading.Thread(target=vaha_loop, daemon=True)
+t_vaha.start()
+
+# Start the Edge Server (HTTP + WS)
+t_server = threading.Thread(target=run_server, daemon=True)
+t_server.start()
+
 App.run()

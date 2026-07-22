@@ -32,7 +32,15 @@
     },
     "scheme": "vaha",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "@config-plugins/react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": ["central"],
+          "bluetoothAlwaysPermission": "Allow VAHA to connect to devices via Bluetooth."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -7,6 +7,19 @@ import { DeviceRepository } from "../../src/features/devices/repositories/Device
 import { SettingsRepository } from "../../src/features/settings/repositories/SettingsRepository";
 import { SyncRepository } from "../../src/features/sync/repositories/SyncRepository";
 
+jest.mock("expo-av", () => ({
+  Audio: {
+    requestPermissionsAsync: jest.fn().mockResolvedValue({ status: "granted" }),
+    setAudioModeAsync: jest.fn(),
+    Recording: jest.fn().mockImplementation(() => ({
+      prepareToRecordAsync: jest.fn(),
+      startAsync: jest.fn(),
+      stopAndUnloadAsync: jest.fn(),
+      getURI: jest.fn().mockReturnValue("file://test.wav"),
+    })),
+  },
+}));
+
 const mockInsertReturning = jest.fn(() => Promise.resolve([{ id: 1 }]));
 const mockUpdateReturning = jest.fn(() => Promise.resolve([{ id: 1 }]));
 const mockDeleteReturning = jest.fn(() => Promise.resolve([{ id: 1 }]));

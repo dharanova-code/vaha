@@ -9,6 +9,12 @@ import { ConsoleLogger, Logger } from "../logger/Logger";
 import { DatabaseProvider } from "@infra/database/config/DatabaseProvider";
 import { bootstrapDI } from "../di/bootstrap";
 import { StartupHealth } from "../runtime/StartupHealth";
+import { InitializeDeviceCommunicationStep } from "./steps/InitializeDeviceCommunicationStep";
+import { SyncService } from "../../features/sync/services/SyncService";
+import { DeviceTransportFactory } from "@features/devices/transport/DeviceTransportFactory";
+import { SettingsRepository } from "@features/settings/repositories/SettingsRepository";
+import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { ExpoNetworkConnectivity } from "@platform/shared/connectivity/NetworkConnectivity";
 
 export class LoadEnvironmentStep implements BootstrapStep {
   readonly name = "Load Environment";
@@ -172,9 +178,26 @@ export class InitializeSecureStorageStep implements BootstrapStep {
 }
 
 export class InitializeLocalStorageStep implements BootstrapStep {
-  readonly name = "Initialize Local Storage";
+  readonly name = "Load Settings (Local Storage)";
   async initialize(): Promise<Result<void, AppError>> {
-    return Result.ok(undefined);
+    try {
+      const container = Container.getInstance();
+      // SettingsRepo was registered in RegisterRepositoriesStep
+      const repo = container.resolve<SettingsRepository>("SettingsRepository");
+      
+      const serverIpRes = await repo.get("serverIp");
+      const autoSyncRes = await repo.get("autoSync");
+
+      if (serverIpRes.isSuccess && serverIpRes.getValueOrThrow()) {
+        useSettingsStore.getState().setServerIp(serverIpRes.getValueOrThrow()!.value);
+      }
+      if (autoSyncRes.isSuccess && autoSyncRes.getValueOrThrow()) {
+        useSettingsStore.getState().setAutoSync(autoSyncRes.getValueOrThrow()!.value === "true");
+      }
+      return Result.ok(undefined);
+    } catch (e) {
+      return Result.fail(new AppError("Failed to load settings from storage", "SETTINGS_LOAD_FAILED", e));
+    }
   }
   async health(): Promise<Result<void, AppError>> {
     return Result.ok(undefined);
@@ -200,7 +223,14 @@ export class InitializeFileSystemStep implements BootstrapStep {
 export class InitializePlatformServicesStep implements BootstrapStep {
   readonly name = "Initialize Platform Services";
   async initialize(): Promise<Result<void, AppError>> {
-    return Result.ok(undefined);
+    try {
+      const container = Container.getInstance();
+      const connectivity = new ExpoNetworkConnectivity();
+      container.register("Connectivity", connectivity);
+      return Result.ok(undefined);
+    } catch (e) {
+      return Result.fail(new AppError("Failed to init platform services", "PLATFORM_INIT_FAILED", e));
+    }
   }
   async health(): Promise<Result<void, AppError>> {
     return Result.ok(undefined);
@@ -214,6 +244,38 @@ export class VerifyStartupStep implements BootstrapStep {
   readonly name = "Verify Startup";
   async initialize(): Promise<Result<void, AppError>> {
     return Result.ok(undefined);
+  }
+  async health(): Promise<Result<void, AppError>> {
+    return Result.ok(undefined);
+  }
+  async shutdown(): Promise<Result<void, AppError>> {
+    return Result.ok(undefined);
+  }
+}
+
+export class RecoverSyncQueueStep implements BootstrapStep {
+  readonly name = "Recover Sync Queue";
+  async initialize(): Promise<Result<void, AppError>> {
+    try {
+      const container = Container.getInstance();
+      const syncService = container.resolve<SyncService>("SyncService");
+      const transportFactory = container.resolve<DeviceTransportFactory>("DeviceTransportFactory");
+      const settingsRepo = container.resolve<SettingsRepository>("SettingsRepository");
+      
+      const serverIpRes = await settingsRepo.get("serverIp");
+      const serverIp = serverIpRes.isSuccess && serverIpRes.getValueOrThrow() ? serverIpRes.getValueOrThrow()!.value : null;
+      
+      if (serverIp) {
+        // Attempt to resume any pending downloads if we have an IP
+        const transport = transportFactory.createHttpTransport({ deviceIp: serverIp, deviceUuid: "recovery" });
+        // Fire and forget so we don't block bootstrap
+        syncService.processQueue(transport).catch(() => {});
+      }
+      return Result.ok(undefined);
+    } catch (_e) {
+      // Don't fail bootstrap if this fails
+      return Result.ok(undefined);
+    }
   }
   async health(): Promise<Result<void, AppError>> {
     return Result.ok(undefined);
@@ -254,6 +316,8 @@ export class ApplicationBootstrap {
       this.manager.register(new InitializeFileSystemStep());
       this.manager.register(new InitializePlatformServicesStep());
       this.manager.register(new VerifyStartupStep());
+      this.manager.register(new InitializeDeviceCommunicationStep());
+      this.manager.register(new RecoverSyncQueueStep());
     }
     return this.manager;
   }
