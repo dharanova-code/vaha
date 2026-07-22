@@ -6,7 +6,10 @@ Provides system health and status metrics (uptime, CPU, RAM, Wi-Fi).
 import os
 import subprocess
 import socket
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import struct
 import time
 from typing import Optional
