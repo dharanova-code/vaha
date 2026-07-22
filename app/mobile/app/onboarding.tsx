@@ -11,7 +11,7 @@ import {
   theme,
   Icon,
   Divider,
-  TopBar
+  OnboardingHeader
 } from "../src/design-system";
 import { STORAGE_KEYS } from "../src/core/constants";
 import { appConfig } from "../src/core/config/AppConfig";
@@ -133,8 +133,8 @@ export default function OnboardingScreen() {
 
   return (
     <Screen style={styles.container}>
-      <TopBar 
-        title="Welcome to VAHA"
+      <OnboardingHeader
+        title={STEPS[step]}
         leftAction={step > 0 ? (
           <Button variant="ghost" onPress={handleBack} style={styles.navBtn}>
             <Icon name="chevron-left" />

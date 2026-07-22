@@ -36,3 +36,4 @@ export * from "./components/CaptureCard";
 export * from "./components/CollectionCard";
 export * from "./components/DeviceCard";
 export * from "./components/SettingsItem";
+export * from "./components/OnboardingHeader";
