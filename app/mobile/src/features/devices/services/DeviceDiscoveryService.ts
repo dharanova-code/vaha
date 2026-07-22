@@ -13,17 +13,15 @@ import {
 } from "../constants/ApiCompatibility";
 import { ApiVersionMismatchError } from "@core/errors/CommunicationError";
 
+import { appConfig } from "@core/config/AppConfig";
+
 /**
- * A discovered device record resolved during mDNS scanning.
+ * Discovered device interface.
  */
 export interface DiscoveredDevice {
-  /** Device UUID parsed from the mDNS instance name (e.g. "VAHA-88291-A") */
   readonly deviceId: string;
-  /** Resolved IPv4 address */
   readonly ip: string;
-  /** HTTP server port */
   readonly port: number;
-  /** TXT record values from the mDNS advertisement */
   readonly txtRecords: {
     readonly fw?: string;
     readonly model?: string;
@@ -32,19 +30,7 @@ export interface DiscoveredDevice {
 }
 
 /**
- * DeviceDiscoveryService is responsible for:
- *
- * 1. Scanning the local network for VAHA devices using mDNS (_vaha._tcp)
- * 2. Resolving discovered devices to IP addresses
- * 3. Performing the /status handshake to verify compatibility
- * 4. Returning a ready DeviceTransport instance for the caller
- *
- * NOTE: In Phase D, mDNS is implemented as a manual IP fallback because
- * react-native-zeroconf has not yet been evaluated and installed.
- * The interface is fully defined so the real mDNS implementation can be
- * dropped in without changing callers.
- *
- * The mDNS scanning integration is tracked as ADR-0010.
+ * DeviceDiscoveryService is responsible for...
  */
 export class DeviceDiscoveryService {
   private readonly logger: Logger;
@@ -55,27 +41,26 @@ export class DeviceDiscoveryService {
     this.transportFactory = transportFactory;
   }
 
-  /**
-   * Scan the local network for VAHA devices via mDNS.
-   *
-   * @returns Array of discovered devices (may be empty if none found)
-   */
   async scan(): Promise<DiscoveredDevice[]> {
     this.logger.info(
       `[COMM] Scanning for devices on ${MDNS_SERVICE_TYPE} (mDNS)`,
     );
 
-    // TODO(ADR-0010): Replace this stub with react-native-zeroconf integration.
-    // The mDNS library must be evaluated and installed as a separate step.
-    // Issue: vaha/issues/XXX
-    //
-    // Real implementation:
-    //   const zeroconf = new Zeroconf();
-    //   zeroconf.scan('vaha', 'tcp');
-    //   return new Promise((resolve) => {
-    //     zeroconf.on('resolved', (service) => { ... });
-    //     setTimeout(() => { zeroconf.stop(); resolve(results); }, 5000);
-    //   });
+    if (appConfig.useMockDevice) {
+      this.logger.info("[COMM] Mock mode: returning simulated discovered device");
+      return [
+        {
+          deviceId: "VAHA-MOCK-DEV",
+          ip: "192.168.1.150",
+          port: DEVICE_HTTP_PORT,
+          txtRecords: {
+            fw: "1.0.4-mock",
+            model: "Uno Q Mock",
+            api: "v1",
+          },
+        },
+      ];
+    }
 
     this.logger.warn(
       "[COMM] mDNS scanning not yet implemented. Use connectToIp() for Phase D testing.",

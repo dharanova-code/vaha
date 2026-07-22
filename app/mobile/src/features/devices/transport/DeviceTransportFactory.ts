@@ -3,8 +3,10 @@ import {
   HttpDeviceTransport,
   HttpTransportConfig,
 } from "./HttpDeviceTransport";
+import { MockDeviceTransport } from "./MockDeviceTransport";
 import { Logger } from "@core/logger/Logger";
 import { DEV_STATIC_TOKEN } from "../constants/ApiCompatibility";
+import { appConfig } from "@core/config/AppConfig";
 
 /**
  * Configuration required by DeviceTransportFactory to create a transport.
@@ -45,6 +47,13 @@ export class DeviceTransportFactory {
    * @returns A DeviceTransport instance ready to make requests
    */
   createHttpTransport(config: TransportFactoryConfig): DeviceTransport {
+    if (appConfig.useMockDevice) {
+      this.logger.info("[COMM] Creating Mock transport", {
+        uuid: config.deviceUuid,
+      });
+      return new MockDeviceTransport(config.deviceUuid, this.logger);
+    }
+
     const transportConfig: HttpTransportConfig = {
       deviceIp: config.deviceIp,
       deviceUuid: config.deviceUuid,
