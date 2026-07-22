@@ -275,6 +275,82 @@ def pull_thoughts(limit=5):
         if len(out)>=limit: break
     return out
 
+def locate_piper_model():
+    # Try the default configured path first
+    if os.path.exists(PIPER_MODEL):
+        return PIPER_MODEL
+    # Search in standard directories
+    for pattern in ["/app/models/piper/*.onnx", "/app/models/*.onnx", "models/piper/*.onnx", "models/*.onnx", "*.onnx"]:
+        matches = glob.glob(pattern)
+        if matches:
+            return matches[0]
+    return None
+
+def self_check():
+    print("[info] [check] Running startup self-check...", flush=True)
+    
+    # 1. Validate Wake model
+    global EIM_PATH
+    if not os.path.exists(EIM_PATH):
+        found = False
+        for alt in ["/app/models/marvin.eim", "models/marvin.eim"]:
+            if os.path.exists(alt):
+                EIM_PATH = alt
+                found = True
+                break
+        if not found:
+            print(f"[error] [check] Wake model missing at {EIM_PATH}", flush=True)
+            sys.exit(1)
+    print(f"[info] [check] Wake model verified: {EIM_PATH}", flush=True)
+    
+    # 2. Validate Piper voice model
+    global PIPER_MODEL
+    voice_path = locate_piper_model()
+    if not voice_path:
+        print("[error] [check] Piper voice model (.onnx) could not be located.", flush=True)
+        sys.exit(1)
+    PIPER_MODEL = voice_path
+    print(f"[info] [check] Piper voice model verified: {PIPER_MODEL}", flush=True)
+    
+    if not os.path.exists(PIPER_EXE):
+        print(f"[error] [check] Piper executable missing at {PIPER_EXE}", flush=True)
+        sys.exit(1)
+        
+    # 3. Validate Whisper model
+    global WHISPER_MODEL_DIR
+    model_bin = os.path.join(WHISPER_MODEL_DIR, "model.bin")
+    if not os.path.exists(model_bin):
+        found = False
+        for alt in ["/app/models/faster-whisper/model.bin", "models/faster-whisper/model.bin", "/app/models/whisper/model.bin"]:
+            if os.path.exists(alt):
+                WHISPER_MODEL_DIR = os.path.dirname(alt)
+                found = True
+                break
+        if not found:
+            print(f"[error] [check] Whisper model (model.bin) missing at {WHISPER_MODEL_DIR}", flush=True)
+            sys.exit(1)
+    print(f"[info] [check] Whisper model verified: {WHISPER_MODEL_DIR}", flush=True)
+    
+    # 4. Validate Audio Input
+    try:
+        p = pyaudio.PyAudio()
+        info = p.get_device_info_by_index(PYAUDIO_DEV)
+        print(f"[info] [check] Audio input device verified: {info['name']}", flush=True)
+        p.terminate()
+    except Exception as e:
+        print(f"[error] [check] Audio input device verification failed (Index {PYAUDIO_DEV}): {e}", flush=True)
+        sys.exit(1)
+        
+    # 5. Validate Audio Output
+    try:
+        device = find_speaker_device()
+        print(f"[info] [check] Audio output device verified: {device}", flush=True)
+    except Exception as e:
+        print(f"[error] [check] Audio output device verification failed: {e}", flush=True)
+        sys.exit(1)
+        
+    print("[info] [check] Startup self-check PASSED.", flush=True)
+
 # ─── RECORDING ────────────────────────────────────────────────────────────────
 def _rms(chunk):
     if chunk.size == 0:
@@ -287,11 +363,12 @@ def record_thought(device):
     print("[info] [record] Initializing recording...", flush=True)
     collected, start = [], time.time()
     last_voice, prompted = None, False
+    prompt_count = 0
+    
     calib = sd.rec(int(0.4*SAMPLE_RATE),samplerate=SAMPLE_RATE,channels=1,
                    dtype="int16",device=device)
     sd.wait()
     ambient = _rms(np.squeeze(calib))
-    # Remove the low cap of 400 to allow threshold to scale with higher ambient noise
     threshold = min(max(150., ambient*1.2), 3000.)
     print(f"[info] [record] Ambient RMS={ambient:.0f} -> threshold={threshold:.0f}", flush=True)
     print(f"[info] [record] Listening... Max duration: {MAX_RECORD_S}s", flush=True)
@@ -315,16 +392,29 @@ def record_thought(device):
             if rms_val > threshold:
                 if last_voice is None:
                     print(f"[info] [record] Voice detected (RMS={rms_val:.0f} > threshold={threshold:.0f})", flush=True)
-                last_voice = now; prompted = False; continue
+                last_voice = now
+                prompted = False
+                prompt_count = 0 # reset prompt count when voice is active
+                continue
+            
+            # Adaptive threshold tracking on non-speech frames
+            if last_voice is not None:
+                ambient = ambient * 0.95 + rms_val * 0.05
+                threshold = min(max(150., ambient * 1.2), 3000.)
+                
             if last_voice is None: continue
             silence = now - last_voice
             if not prompted and silence >= FIRST_SILENCE_S:
-                print(f"[info] [record] Detected silence for {FIRST_SILENCE_S}s. Asking to continue...", flush=True)
-                speak("Still listening.")
-                prompted = True; continue
-            if prompted and silence >= FIRST_SILENCE_S+SECOND_SILENCE_S:
-                print(f"[info] [record] Extended silence of {FIRST_SILENCE_S+SECOND_SILENCE_S}s detected. Stopping.", flush=True)
-                break
+                if prompt_count < 3:
+                    prompt_count += 1
+                    print(f"[info] [record] Detected silence for {FIRST_SILENCE_S}s (Prompt #{prompt_count}/3). Asking to continue...", flush=True)
+                    speak("Still listening?")
+                    prompted = True
+                    last_voice = time.time() # Reset voice timestamp to resume/give 3 more seconds
+                    continue
+                else:
+                    print(f"[info] [record] Max prompts reached ({prompt_count}). Stopping recording.", flush=True)
+                    break
     return np.concatenate(collected) if collected else np.array([],dtype=np.int16)
 
 # ─── CHIME ────────────────────────────────────────────────────────────────────
@@ -452,6 +542,9 @@ import threading
 from server.app import run_server
 from server.services.sensor_service import sensor_service
 from server.websocket.ws_handler import broadcast_event
+
+# Run startup self-check before starting any services
+self_check()
 
 # Start the sensor polling service
 sensor_service.start()
