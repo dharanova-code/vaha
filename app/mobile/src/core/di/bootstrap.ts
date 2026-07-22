@@ -25,4 +25,10 @@ export function bootstrapDI(): void {
     const logger = container.resolve<Logger>("Logger");
     return new AudioRecordingService(logger);
   });
+
+  container.singleton("TranscriptionService", () => {
+    const logger = container.resolve<Logger>("Logger");
+    const { LocalWhisperTranscriptionService } = require("@features/captures/services/LocalWhisperTranscriptionService");
+    return new LocalWhisperTranscriptionService(logger);
+  });
 }

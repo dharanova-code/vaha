@@ -82,20 +82,10 @@ export default function NewCaptureModal() {
       const localWavPath = `${FileSystem.documentDirectory}vaha/audio/${uuid}.wav`;
       
       try {
-        const client = Container.getInstance().resolve<any>("DeviceClient");
-        let transport = client.transport;
-        if (!transport && appConfig.useMockDevice) {
-          const factory = Container.getInstance().resolve<any>("DeviceTransportFactory");
-          transport = factory.createHttpTransport({ deviceIp: "127.0.0.1", deviceUuid: "mock-temp" });
-        }
+        const { TranscriptionService } = require("../../src/features/captures/services/TranscriptionService");
+        const transcriptionService = Container.getInstance().resolve<any>("TranscriptionService");
         
-        if (!transport) {
-          Alert.alert("Device Disconnected", "Transcription requires a connected VAHA Uno Q device or Mock Dev mode enabled.");
-          setIsTranscribing(false);
-          return;
-        }
-
-        const uploadResult = await transport.upload("/captures/transcribe", localWavPath, "audio", "audio/wav") as any;
+        const uploadResult = await transcriptionService.transcribe(localWavPath);
         
         // PRIVACY FIRST: Delete local audio file immediately after transcribing
         try {
@@ -105,7 +95,7 @@ export default function NewCaptureModal() {
         }
 
         if (uploadResult.isSuccess) {
-          const text = uploadResult.getValueOrThrow().transcript;
+          const text = uploadResult.getValueOrThrow();
           setTranscript(prev => prev ? prev + "\n" + text : text);
         } else {
           Alert.alert("Transcription Failed", "Could not transcribe audio. You can still type your capture manually.");
