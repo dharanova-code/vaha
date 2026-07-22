@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleSheet, View, ScrollView, RefreshControl } from "react-native";
+import { router } from "expo-router";
 import {
   Screen,
   Text,
@@ -111,7 +112,13 @@ export default function HomeScreen() {
           <Button
             key={action.id}
             variant="outline"
-            onPress={() => {}}
+            onPress={() => {
+              if (action.id === "new-capture") {
+                router.push("/(modals)/new-capture" as any);
+              } else {
+                router.push(action.route as any);
+              }
+            }}
             accessibilityLabel={action.accessibilityLabel}
             style={styles.actionButton}
           >
@@ -155,7 +162,9 @@ export default function HomeScreen() {
                   variant={capture.syncState === "synced" ? "success" : "warning"}
                 />
               }
-              onPress={() => {}}
+              onPress={() => {
+                router.push({ pathname: "/(modals)/capture-details", params: { uuid: capture.uuid } });
+              }}
             />
           ))
         )}
