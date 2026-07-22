@@ -219,39 +219,54 @@ def pull_thoughts(limit=5):
 
 # ─── RECORDING ────────────────────────────────────────────────────────────────
 def _rms(chunk):
-    return float(np.sqrt(np.mean(chunk.astype(np.float64)**2)))
+    if chunk.size == 0:
+        return 0.0
+    # Remove DC offset to get true AC signal RMS
+    ac = chunk.astype(np.float64) - np.mean(chunk)
+    return float(np.sqrt(np.mean(ac**2)))
 
 def record_thought(device):
+    print("[info] [record] Initializing recording...", flush=True)
     collected, start = [], time.time()
     last_voice, prompted = None, False
     calib = sd.rec(int(0.4*SAMPLE_RATE),samplerate=SAMPLE_RATE,channels=1,
                    dtype="int16",device=device)
     sd.wait()
     ambient = _rms(np.squeeze(calib))
-    threshold = min(max(50., ambient*1.05), 400.)
-    print(f"[record] Ambient RMS={ambient:.0f} -> threshold={threshold:.0f}", flush=True)
+    # Remove the low cap of 400 to allow threshold to scale with higher ambient noise
+    threshold = min(max(150., ambient*1.2), 3000.)
+    print(f"[info] [record] Ambient RMS={ambient:.0f} -> threshold={threshold:.0f}", flush=True)
+    print(f"[info] [record] Listening... Max duration: {MAX_RECORD_S}s", flush=True)
+    
     with sd.InputStream(samplerate=SAMPLE_RATE,channels=1,dtype="int16",
                         blocksize=CHUNK_SIZE,device=device) as stream:
         stream.start()
         while True:
             now = time.time()
-            if now-start > MAX_RECORD_S: break
+            if now-start > MAX_RECORD_S:
+                print("[info] [record] Maximum recording duration reached.", flush=True)
+                break
             if last_voice is None and now-start > NO_SPEECH_GIVEUP_S:
-                print("[record] No speech detected.", flush=True); break
+                print("[info] [record] No speech detected within timeout. Giving up.", flush=True)
+                break
             data,_ = stream.read(CHUNK_SIZE)
             chunk = np.squeeze(data).astype(np.int16)
             collected.append(chunk)
-            if _rms(chunk) > threshold:
+            
+            rms_val = _rms(chunk)
+            if rms_val > threshold:
                 if last_voice is None:
-                    print(f"[record] Voice detected", flush=True)
+                    print(f"[info] [record] Voice detected (RMS={rms_val:.0f} > threshold={threshold:.0f})", flush=True)
                 last_voice = now; prompted = False; continue
             if last_voice is None: continue
             silence = now - last_voice
             if not prompted and silence >= FIRST_SILENCE_S:
+                print(f"[info] [record] Detected silence for {FIRST_SILENCE_S}s. Asking to continue...", flush=True)
                 speak("Still listening.")
                 prompted = True; continue
             if prompted and silence >= FIRST_SILENCE_S+SECOND_SILENCE_S:
-                print("[record] Extended silence.", flush=True); break
+                print(f"[info] [record] Extended silence of {FIRST_SILENCE_S+SECOND_SILENCE_S}s detected. Stopping.", flush=True)
+                break
     return np.concatenate(collected) if collected else np.array([],dtype=np.int16)
 
 # ─── CHIME ────────────────────────────────────────────────────────────────────
@@ -301,33 +316,38 @@ def listen_for_wake_word():
 
 # ─── MAIN PIPELINE ────────────────────────────────────────────────────────────
 def vaha_loop():
-    print("=== Vaha starting ===", flush=True)
+    print("[info] [main] === Vaha starting ===", flush=True)
     device = find_best_mic()
-    print(f"[main] Mic device: {device}", flush=True)
+    print(f"[info] [main] Mic device: {device}", flush=True)
     get_whisper()
-    print("[main] Ready.", flush=True)
+    print("[info] [main] Ready.", flush=True)
     speak("Vaha is ready. Say Marvin to begin.")
     while True:
         if listen_for_wake_word():
+            print("[info] [main] Wake word detected. Transitioning to recording stage...", flush=True)
             broadcast_event("capture_started")
             play_chime()
             time.sleep(2.0)
             broadcast_event("recording")
             audio = record_thought(device)
+            print("[info] [main] Recording finished. Transitioning to processing stage...", flush=True)
             broadcast_event("capture_finished")
             
             if audio.size == 0:
+                print("[info] [main] No audio captured. Returning to listening.", flush=True)
                 speak("I didn't hear anything."); continue
                 
-            print(f"{_ts()}[main] Transcribing...", flush=True)
+            print(f"{_ts()}[info] [main] Transcribing audio with Whisper...", flush=True)
             broadcast_event("whisper_processing")
             
             audio_16k = resample_poly(audio,1,3).astype(np.int16)
             text = transcribe(audio_16k)
-            print(f"{_ts()}[main] Heard: '{text}'", flush=True)
+            print(f"{_ts()}[info] [main] Heard: '{text}'", flush=True)
             if not text:
+                print("[info] [main] Transcription resulted in empty text. Returning to listening.", flush=True)
                 speak("I didn't catch that."); continue
             if any(p in text.lower() for p in READ_PHRASES):
+                print("[info] [main] Detected read phrase. Reading back notes...", flush=True)
                 speak("Reading your recent notes.")
                 for i,t in enumerate(pull_thoughts(),1):
                     speak(f"Note {i}. {t}"); time.sleep(0.4)
@@ -335,22 +355,19 @@ def vaha_loop():
             for p in STOP_PHRASES:
                 text = re.sub(rf"[,.\s]*{re.escape(p)}[.!?]?\s*$","",text,
                                flags=re.IGNORECASE).strip()
-            if not text: speak("I didn't catch that."); continue
+            if not text:
+                print("[info] [main] Post-processed text is empty. Returning to listening.", flush=True)
+                speak("I didn't catch that."); continue
             sensors = get_sensors()
-            if sensors: print(f"[main] Sensors: {sensors}", flush=True)
+            if sensors: print(f"[info] [main] Sensors: {sensors}", flush=True)
+            
+            print("[info] [main] Saving capture locally...", flush=True)
             with open(NOTES_FILE,"a") as f:
                 f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] {text}\n")
-            try:
-                push_thought(text, sensors=sensors)
-                speak("Saved.")
-            except Exception as e:
-                print(f"[main] Notion error: {e}", flush=True)
-                speak("Saved locally. Notion sync failed.")
-
+            
             # Save the capture to the Edge Server's CaptureService
             try:
                 from server.services.capture_service import capture_service
-                # Get raw audio for save
                 capture_service.save_capture(
                     audio_data=audio.tobytes(),
                     transcript=text,
@@ -358,8 +375,18 @@ def vaha_loop():
                     sample_rate=SAMPLE_RATE,
                     channels=1
                 )
+                print("[info] [main] Capture saved locally successfully.", flush=True)
             except Exception as e:
-                print(f"[main] Capture save error: {e}", flush=True)
+                print(f"[info] [main] Capture save error: {e}", flush=True)
+
+            print("[info] [main] Syncing capture to Notion...", flush=True)
+            try:
+                push_thought(text, sensors=sensors)
+                print("[info] [main] Sync to Notion succeeded. Playing response...", flush=True)
+                speak("Saved.")
+            except Exception as e:
+                print(f"[info] [main] Notion error: {e}", flush=True)
+                speak("Saved locally. Notion sync failed.")
 
         time.sleep(0.1)
 
