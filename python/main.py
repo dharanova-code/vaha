@@ -343,6 +343,20 @@ def locate_piper_model():
                 return str(onnx_file)
     return None
 
+def find_whisper_model_files(base_dir):
+    if not os.path.exists(base_dir):
+        return None
+    # Search recursively for model.bin in base_dir
+    pattern = os.path.join(base_dir, "**/model.bin")
+    model_bins = glob.glob(pattern, recursive=True)
+    for model_bin in model_bins:
+        model_dir = os.path.dirname(model_bin)
+        config_path = os.path.join(model_dir, "config.json")
+        tokenizer_path = os.path.join(model_dir, "tokenizer.json")
+        if os.path.exists(config_path) and os.path.exists(tokenizer_path):
+            return model_dir
+    return None
+
 def self_check():
     print("[info] [check] Running startup self-check...", flush=True)
     
@@ -375,18 +389,33 @@ def self_check():
         
     # 3. Validate Whisper model
     global WHISPER_MODEL_DIR
-    model_bin = os.path.join(WHISPER_MODEL_DIR, "model.bin")
-    if not os.path.exists(model_bin):
-        found = False
-        for alt in ["/app/models/faster-whisper/model.bin", "models/faster-whisper/model.bin", "/app/models/whisper/model.bin"]:
-            if os.path.exists(alt):
-                WHISPER_MODEL_DIR = os.path.dirname(alt)
-                found = True
+    whisper_dir = find_whisper_model_files(WHISPER_MODEL_DIR)
+    if not whisper_dir:
+        # Check inside /app/models or models/ as fallback
+        for alt_root in ["/app/models/faster-whisper", "models/faster-whisper", "/app/models", "models"]:
+            whisper_dir = find_whisper_model_files(alt_root)
+            if whisper_dir:
+                # Set WHISPER_MODEL_DIR to the base root directory where the Systran folders reside
+                # e.g., if whisper_dir is /app/models/faster-whisper/models--Systran.../snapshots/xyz
+                # then we can keep it as is or resolve the base down to /app/models/faster-whisper
                 break
-        if not found:
-            print(f"[error] [check] Whisper model (model.bin) missing at {WHISPER_MODEL_DIR}", flush=True)
+                
+    if whisper_dir:
+        print(f"[info] [check] Whisper model verified: {whisper_dir}", flush=True)
+    else:
+        print("[warn] [check] Whisper model (model.bin, config.json, tokenizer.json) not found locally. Initiating model download...", flush=True)
+        try:
+            get_whisper()
+            # Double check after download
+            whisper_dir = find_whisper_model_files(WHISPER_MODEL_DIR)
+            if whisper_dir:
+                print(f"[info] [check] Whisper model downloaded and verified: {whisper_dir}", flush=True)
+            else:
+                print(f"[error] [check] Whisper model download succeeded but validation files were not found.", flush=True)
+                sys.exit(1)
+        except Exception as e:
+            print(f"[error] [check] Failed to download Whisper model: {e}", flush=True)
             sys.exit(1)
-    print(f"[info] [check] Whisper model verified: {WHISPER_MODEL_DIR}", flush=True)
     
     # 4. Validate Audio Input
     try:
