@@ -3,7 +3,6 @@ import { StyleSheet, View, Alert, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { getStorageService } from "../src/infrastructure/storage/KeyValueStorage";
 import { Audio } from "expo-av";
-import * as Notifications from "expo-notifications";
 import {
   Screen,
   Text,
@@ -71,7 +70,25 @@ export default function OnboardingScreen() {
   };
 
   const requestNotifPermission = async () => {
+    let isExpoGo = false;
     try {
+      const Constants = require("expo-constants").default || require("expo-constants");
+      isExpoGo = Constants.executionEnvironment === "store-client" || Constants.appOwnership === "expo";
+    } catch (e) {
+      // ignore
+    }
+
+    if (isExpoGo) {
+      setNotifStatus("denied");
+      Alert.alert(
+        "Notifications Unsupported",
+        "Android push notifications are not supported in Expo Go on SDK 54.\n\nPlease use a custom Development Build."
+      );
+      return;
+    }
+
+    try {
+      const Notifications = require("expo-notifications");
       const { status } = await Notifications.requestPermissionsAsync();
       setNotifStatus(status === "granted" ? "granted" : "denied");
     } catch (e) {
