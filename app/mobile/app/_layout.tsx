@@ -10,7 +10,7 @@ import { ThemeProvider } from "../src/design-system";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-export default function RootLayout() {
+function RootLayout() {
   const [bootstrapStatus, setBootstrapStatus] = useState<"loading" | "ready" | "failed">("loading");
   const [error, setError] = useState<AppError | null>(null);
 
@@ -118,4 +118,5 @@ const styles = StyleSheet.create({
 });
 
 export { ErrorBoundary } from "expo-router";
+export default RootLayout;
 
