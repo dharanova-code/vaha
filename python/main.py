@@ -1,4 +1,24 @@
 import sys, os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Locating python/.env properly using pathlib project-relative paths
+_script_dir = Path(__file__).resolve().parent
+_env_candidates = [
+    _script_dir / ".env",
+    _script_dir.parent / ".env",
+    Path("/app/python/.env"),
+    Path("/app/.env"),
+]
+_env_loaded = False
+for _path in _env_candidates:
+    if _path.exists():
+        load_dotenv(str(_path))
+        _env_loaded = True
+        break
+if not _env_loaded:
+    load_dotenv()
+
 sys.path.insert(0, "/app/wheels")
 os.chdir('/app')
 
@@ -10,12 +30,9 @@ import sounddevice as sd
 import pyaudio
 import noisereduce as nr
 from scipy.signal import resample_poly
-from dotenv import load_dotenv
 from notion_client import Client
 from edge_impulse_linux.runner import ImpulseRunner
 from arduino.app_utils import App, Bridge
-
-load_dotenv()
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 SAMPLE_RATE        = 48000
@@ -26,8 +43,9 @@ FIRST_SILENCE_S    = 3.0
 SECOND_SILENCE_S   = 7.0
 MAX_RECORD_S       = 600
 NO_SPEECH_GIVEUP_S = 7.0
-NOTION_TOKEN       = os.environ.get("NOTION_TOKEN","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")
-NOTION_DB_ID       = os.environ.get("NOTION_DATABASE_ID","919fbc944bc94c58875be84819851c62")
+NOTION_TOKEN       = os.environ.get("NOTION_TOKEN","")
+NOTION_DB_ID       = os.environ.get("NOTION_DATABASE_ID","")
+NOTION_SYNC_ENABLED = False
 NOTES_FILE         = "/app/notes.txt"
 PIPER_EXE          = "/app/piper/piper"
 PIPER_MODEL        = "/app/models/piper/en_US-lessac-medium.onnx"
@@ -236,6 +254,9 @@ def _sensor_line(s):
     return "  |  "+"  ".join(parts) if parts else ""
 
 def push_thought(text, sensors=None):
+    if not NOTION_SYNC_ENABLED:
+        print("[info] [notion] Notion sync is disabled. Skipping push.", flush=True)
+        return None
     n = _notion_client()
     now = datetime.now(timezone.utc)
     tag = "idea"
@@ -262,6 +283,9 @@ def push_thought(text, sensors=None):
     return page['id']
 
 def pull_thoughts(limit=5):
+    if not NOTION_SYNC_ENABLED:
+        print("[info] [notion] Notion sync is disabled. Skipping pull.", flush=True)
+        return []
     n = _notion_client()
     resp = n.search(filter={"property":"object","value":"page"},
                     sort={"direction":"descending","timestamp":"last_edited_time"},
@@ -308,15 +332,15 @@ def locate_piper_model():
             continue
         onnx_files = list(s_dir.glob("*.onnx"))
         for onnx_file in onnx_files:
-            # Check if matching .json exists
+            # Strictly verify both .onnx and .onnx.json exist
             json_file = onnx_file.with_suffix(onnx_file.suffix + ".json")
-            if json_file.exists():
-                return str(onnx_file)
             json_file_alt = onnx_file.with_suffix(".json")
-            if json_file_alt.exists():
+            if json_file.exists():
+                print(f"[info] [check] Found Piper model: {onnx_file} and json: {json_file}", flush=True)
                 return str(onnx_file)
-            # If no json check succeeds, return the onnx file anyway
-            return str(onnx_file)
+            elif json_file_alt.exists():
+                print(f"[info] [check] Found Piper model: {onnx_file} and json: {json_file_alt}", flush=True)
+                return str(onnx_file)
     return None
 
 def self_check():
@@ -381,6 +405,21 @@ def self_check():
     except Exception as e:
         print(f"[error] [check] Audio output device verification failed: {e}", flush=True)
         sys.exit(1)
+        
+    # 6. Validate Notion configuration (optional)
+    global NOTION_SYNC_ENABLED
+    if not NOTION_TOKEN or not NOTION_DB_ID:
+        print("[warn] [check] Notion configuration missing. Sync is disabled.", flush=True)
+        NOTION_SYNC_ENABLED = False
+    else:
+        try:
+            client = Client(auth=NOTION_TOKEN)
+            client.databases.retrieve(database_id=NOTION_DB_ID)
+            print("[info] [check] Notion configuration verified successfully.", flush=True)
+            NOTION_SYNC_ENABLED = True
+        except Exception as e:
+            print(f"[warn] [check] Notion credentials invalid/database unreachable: {e}. Sync is disabled.", flush=True)
+            NOTION_SYNC_ENABLED = False
         
     print("[info] [check] Startup self-check PASSED.", flush=True)
 
@@ -560,14 +599,18 @@ def vaha_loop():
             except Exception as e:
                 print(f"[info] [main] Capture save error: {e}", flush=True)
 
-            print("[info] [main] Syncing capture to Notion...", flush=True)
-            try:
-                push_thought(text, sensors=sensors)
-                print("[info] [main] Sync to Notion succeeded. Playing response...", flush=True)
-                speak("Saved.")
-            except Exception as e:
-                print(f"[info] [main] Notion error: {e}", flush=True)
-                speak("Saved locally. Notion sync failed.")
+            if NOTION_SYNC_ENABLED:
+                print("[info] [main] Syncing capture to Notion...", flush=True)
+                try:
+                    push_thought(text, sensors=sensors)
+                    print("[info] [main] Sync to Notion succeeded. Playing response...", flush=True)
+                    speak("Saved.")
+                except Exception as e:
+                    print(f"[info] [main] Notion error: {e}", flush=True)
+                    speak("Saved locally. Notion sync failed.")
+            else:
+                print("[info] [main] Notion sync is disabled. Skipping sync.", flush=True)
+                speak("Saved locally.")
 
         time.sleep(0.1)
 
