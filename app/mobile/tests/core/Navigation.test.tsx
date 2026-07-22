@@ -50,6 +50,7 @@ jest.mock("expo-router", () => {
     Redirect: () => null,
     Link: () => null,
     Slot: () => null,
+    useLocalSearchParams: () => ({ uuid: "123" }),
     Tabs: {
       Screen: () => null,
     },
@@ -62,6 +63,12 @@ jest.mock("expo-router", () => {
     },
   };
 });
+
+jest.mock("@expo/vector-icons", () => ({
+  Feather: () => null,
+  MaterialIcons: () => null,
+  AntDesign: () => null,
+}));
 
 describe("Navigation Shell & Routing", () => {
   it("should instantiate EntryRedirect component", () => {

@@ -5,7 +5,7 @@ import {
   Capture,
   NewCapture,
 } from "@infra/database/schema/captures";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, or, like } from "drizzle-orm";
 import { Result } from "@core/utils/Result";
 import { DatabaseError } from "@core/errors/AppError";
 
@@ -139,6 +139,22 @@ export class CaptureRepositoryImpl implements CaptureRepository {
     }
   }
 
+  public async findByUuid(
+    uuid: string,
+  ): Promise<Result<Capture | null, DatabaseError>> {
+    try {
+      const matches = await this.db
+        .select()
+        .from(captures)
+        .where(eq(captures.uuid, uuid));
+      return Result.ok(matches[0] ?? null);
+    } catch (error) {
+      return Result.fail(
+        new DatabaseError(`Query findByUuid capture ${uuid} failed`, error),
+      );
+    }
+  }
+
   public async findAll(): Promise<Result<Capture[], DatabaseError>> {
     try {
       const all = await this.db
@@ -226,6 +242,29 @@ export class CaptureRepositoryImpl implements CaptureRepository {
     } catch (error) {
       return Result.fail(
         new DatabaseError(`Query exists capture failed for ID ${id}`, error),
+      );
+    }
+  }
+
+  public async search(query: string): Promise<Result<Capture[], DatabaseError>> {
+    try {
+      const searchTerm = `%${query}%`;
+      const matches = await this.db
+        .select()
+        .from(captures)
+        .where(
+          and(
+            sql`${captures.deletedAt} IS NULL`,
+            or(
+              like(captures.title, searchTerm),
+              like(captures.transcript, searchTerm)
+            )
+          )
+        );
+      return Result.ok(matches);
+    } catch (error) {
+      return Result.fail(
+        new DatabaseError(`Query search captures failed for query "${query}"`, error),
       );
     }
   }

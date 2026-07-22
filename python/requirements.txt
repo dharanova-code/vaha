@@ -7,3 +7,7 @@ notion-client
 python-dotenv
 requests
 watchdog
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart

@@ -5,6 +5,8 @@ import { TagRepositoryImpl } from "@features/tags/repositories/TagRepositoryImpl
 import { DeviceRepositoryImpl } from "@features/devices/repositories/DeviceRepositoryImpl";
 import { SettingsRepositoryImpl } from "@features/settings/repositories/SettingsRepositoryImpl";
 import { SyncRepositoryImpl } from "@features/sync/repositories/SyncRepositoryImpl";
+import { AudioRecordingService } from "@features/captures/services/AudioRecordingService";
+import { Logger } from "../logger/Logger";
 
 export function bootstrapDI(): void {
   const container = Container.getInstance();
@@ -18,4 +20,9 @@ export function bootstrapDI(): void {
   container.singleton("DeviceRepository", () => new DeviceRepositoryImpl());
   container.singleton("SettingsRepository", () => new SettingsRepositoryImpl());
   container.singleton("SyncRepository", () => new SyncRepositoryImpl());
+  
+  container.singleton("AudioRecordingService", () => {
+    const logger = container.resolve<Logger>("Logger");
+    return new AudioRecordingService(logger);
+  });
 }

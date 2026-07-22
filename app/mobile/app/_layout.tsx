@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { ApplicationBootstrap } from "../src/core/bootstrap/ApplicationBootstrap";
 import { AppError } from "../src/core/errors/AppError";
+import { ThemeProvider } from "../src/design-system";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -64,8 +65,10 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Slot />
+        <ThemeProvider>
+          <StatusBar style="dark" />
+          <Slot />
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

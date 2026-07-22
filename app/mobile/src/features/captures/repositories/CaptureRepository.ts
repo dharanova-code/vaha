@@ -13,6 +13,7 @@ export interface CaptureRepository {
   softDelete(id: number): Promise<Result<void, DatabaseError>>;
   hardDelete(id: number): Promise<Result<void, DatabaseError>>;
   findById(id: number): Promise<Result<Capture | null, DatabaseError>>;
+  findByUuid(uuid: string): Promise<Result<Capture | null, DatabaseError>>;
   findAll(): Promise<Result<Capture[], DatabaseError>>;
   findByCollection(
     collectionId: number,
@@ -20,4 +21,5 @@ export interface CaptureRepository {
   findByDevice(deviceId: number): Promise<Result<Capture[], DatabaseError>>;
   count(): Promise<Result<number, DatabaseError>>;
   exists(id: number): Promise<Result<boolean, DatabaseError>>;
+  search(query: string): Promise<Result<Capture[], DatabaseError>>;
 }
