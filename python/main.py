@@ -276,14 +276,47 @@ def pull_thoughts(limit=5):
     return out
 
 def locate_piper_model():
-    # Try the default configured path first
-    if os.path.exists(PIPER_MODEL):
-        return PIPER_MODEL
-    # Search in standard directories
-    for pattern in ["/app/models/piper/*.onnx", "/app/models/*.onnx", "models/piper/*.onnx", "models/*.onnx", "*.onnx"]:
-        matches = glob.glob(pattern)
-        if matches:
-            return matches[0]
+    from pathlib import Path
+    current_file = Path(__file__).resolve()
+    python_dir = current_file.parent
+    project_root = python_dir.parent if python_dir.name == "python" else python_dir
+    
+    print(f"[info] [check] os.getcwd(): {os.getcwd()}", flush=True)
+    print(f"[info] [check] __file__: {current_file}", flush=True)
+    print(f"[info] [check] Resolved project_root: {project_root}", flush=True)
+    
+    search_dirs = [
+        project_root / "models" / "piper",
+        project_root / "models",
+        Path("/app/models/piper"),
+        Path("/app/models"),
+        python_dir / "models" / "piper",
+        python_dir / "models",
+    ]
+    
+    candidate_paths = []
+    for s_dir in search_dirs:
+        candidate_paths.append(str(s_dir / "*.onnx"))
+        candidate_paths.append(str(s_dir / "*.onnx.json"))
+        
+    print(f"[info] [check] Candidate glob patterns checked:", flush=True)
+    for p in candidate_paths:
+        print(f"  - {p}", flush=True)
+        
+    for s_dir in search_dirs:
+        if not s_dir.exists():
+            continue
+        onnx_files = list(s_dir.glob("*.onnx"))
+        for onnx_file in onnx_files:
+            # Check if matching .json exists
+            json_file = onnx_file.with_suffix(onnx_file.suffix + ".json")
+            if json_file.exists():
+                return str(onnx_file)
+            json_file_alt = onnx_file.with_suffix(".json")
+            if json_file_alt.exists():
+                return str(onnx_file)
+            # If no json check succeeds, return the onnx file anyway
+            return str(onnx_file)
     return None
 
 def self_check():
@@ -310,7 +343,7 @@ def self_check():
         print("[error] [check] Piper voice model (.onnx) could not be located.", flush=True)
         sys.exit(1)
     PIPER_MODEL = voice_path
-    print(f"[info] [check] Piper voice model verified: {PIPER_MODEL}", flush=True)
+    print(f"✓ Piper voice:\n{PIPER_MODEL}", flush=True)
     
     if not os.path.exists(PIPER_EXE):
         print(f"[error] [check] Piper executable missing at {PIPER_EXE}", flush=True)
