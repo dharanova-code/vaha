@@ -6,6 +6,7 @@ import { DeviceClient } from "../client/DeviceClient";
 import { CaptureRepository } from "../../captures/repositories/CaptureRepository";
 import { SyncService, SyncEvent } from "../../sync/services/SyncService";
 import { DeviceTransport } from "../transport/DeviceTransport";
+import { generateUUID } from "@core/utils/uuid";
 
 export type CaptureWithTags = Capture & { tags?: string[] };
 
@@ -120,16 +121,21 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
         }
     });
 
-    const result = await syncService.syncFromDevice(client as unknown as DeviceTransport); // casting DeviceClient to DeviceTransport for Phase F stub
+    if (!client.transport) {
+      set({ isSyncing: false });
+      return;
+    }
+
+    const result = await syncService.syncFromDevice(client.transport);
     if (!result.isSuccess) {
        set({ isSyncing: false });
        unsubscribe();
-    }
+     }
   },
 
   resumeSyncQueue: async () => {
     const client = Container.getInstance().resolve<DeviceClient>("DeviceClient");
-    if (!client.isConnected) return;
+    if (!client.isConnected || !client.transport) return;
     
     const syncService = Container.getInstance().resolve<SyncService>("SyncService");
     
@@ -148,7 +154,7 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
         }
     });
 
-    await syncService.processQueue(client as unknown as DeviceTransport).catch(() => {
+    await syncService.processQueue(client.transport).catch(() => {
         set({ isSyncing: false });
         unsubscribe();
     });
@@ -178,9 +184,8 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
       finalTitle = match ? match[0].trim() : "Untitled Capture";
     }
     
-    const Crypto = require("expo-crypto");
     const res = await repo.create({
-      uuid: Crypto.randomUUID(),
+      uuid: generateUUID(),
       title: finalTitle,
       transcript,
       syncState: "pending",

@@ -21,6 +21,7 @@ export type SyncEventListener = (event: unknown) => void;
 export interface DeviceClient {
   readonly isConnected: boolean;
   readonly deviceIp: string | null;
+  readonly transport: DeviceTransport | null;
 
   connect(ip: string): Promise<Result<void, CommunicationError>>;
   disconnect(): Promise<void>;
@@ -35,7 +36,7 @@ export interface DeviceClient {
 }
 
 class DeviceClientImpl implements DeviceClient {
-  private transport: DeviceTransport | null = null;
+  transport: DeviceTransport | null = null;
   private ip: string | null = null;
   private listeners: Set<SyncEventListener> = new Set();
   

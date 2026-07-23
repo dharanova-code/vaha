@@ -505,12 +505,11 @@ def record_thought(device):
                 
             if last_voice is None: continue
             silence = now - last_voice
-            if not prompted and silence >= FIRST_SILENCE_S:
+            if silence >= FIRST_SILENCE_S:
                 if prompt_count < 3:
                     prompt_count += 1
                     print(f"[info] [record] Detected silence for {FIRST_SILENCE_S}s (Prompt #{prompt_count}/3). Asking to continue...", flush=True)
                     speak("Still listening?")
-                    prompted = True
                     last_voice = time.time() # Reset voice timestamp to resume/give 3 more seconds
                     continue
                 else:
