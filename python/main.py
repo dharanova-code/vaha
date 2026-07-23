@@ -83,7 +83,17 @@ def find_speaker_device():
                 return f"plughw:Device,0"  # Generalplus by name
     return "plughw:Device,0"  # fallback by name
 
+GLOBAL_TTS_TIME = 0.0
+
 def speak(text):
+    global GLOBAL_TTS_TIME
+    start_tts = time.time()
+    try:
+        _speak_impl(text)
+    finally:
+        GLOBAL_TTS_TIME += time.time() - start_tts
+
+def _speak_impl(text):
     if not text:
         return
     print(f"[info] [speak] TTS generation started: '{text}'", flush=True)
@@ -463,8 +473,6 @@ def _rms(chunk):
 def record_thought(device):
     print("[info] [record] Initializing recording...", flush=True)
     collected, start = [], time.time()
-    last_voice, prompted = None, False
-    prompt_count = 0
     
     calib = sd.rec(int(0.4*SAMPLE_RATE),samplerate=SAMPLE_RATE,channels=1,
                    dtype="int16",device=device)
@@ -474,47 +482,115 @@ def record_thought(device):
     print(f"[info] [record] Ambient RMS={ambient:.0f} -> threshold={threshold:.0f}", flush=True)
     print(f"[info] [record] Listening... Max duration: {MAX_RECORD_S}s", flush=True)
     
+    # FSM variables
+    state = "IDLE"
+    last_state = "IDLE"
+    prompt_count = 0
+    last_voice = None
+    mute_until = 0.0
+    
+    last_log_time = 0.0
+    
     with sd.InputStream(samplerate=SAMPLE_RATE,channels=1,dtype="int16",
                         blocksize=CHUNK_SIZE,device=device) as stream:
         stream.start()
+        
+        state = "LISTENING"
+        
         while True:
             now = time.time()
-            if now-start > MAX_RECORD_S:
+            
+            # Global safeguards
+            if now - start > MAX_RECORD_S:
                 print("[info] [record] Maximum recording duration reached.", flush=True)
+                state = "STOP_RECORDING"
+                
+            silence = 0.0
+            if last_voice is not None:
+                silence = now - last_voice
+                
+            if now - last_log_time >= 1.0 or state != last_state:
+                print("[record]", flush=True)
+                print(f"state={state}", flush=True)
+                print(f"prompt={prompt_count}", flush=True)
+                print(f"silence={silence:.1f}", flush=True)
+                print(f"last_voice={last_voice if last_voice is not None else 'None'}", flush=True)
+                last_log_time = now
+                last_state = state
+                
+            if state == "STOP_RECORDING":
                 break
-            if last_voice is None and now-start > NO_SPEECH_GIVEUP_S:
-                print("[info] [record] No speech detected within timeout. Giving up.", flush=True)
-                break
-            data,_ = stream.read(CHUNK_SIZE)
+                
+            data, _ = stream.read(CHUNK_SIZE)
             chunk = np.squeeze(data).astype(np.int16)
             collected.append(chunk)
             
             rms_val = _rms(chunk)
-            if rms_val > threshold:
-                if last_voice is None:
-                    print(f"[info] [record] Voice detected (RMS={rms_val:.0f} > threshold={threshold:.0f})", flush=True)
-                last_voice = now
-                prompted = False
-                prompt_count = 0 # reset prompt count when voice is active
-                continue
+            is_voice = False
             
-            # Adaptive threshold tracking on non-speech frames
-            if last_voice is not None:
-                ambient = ambient * 0.95 + rms_val * 0.05
-                threshold = min(max(150., ambient * 1.2), 3000.)
-                
-            if last_voice is None: continue
-            silence = now - last_voice
-            if silence >= FIRST_SILENCE_S:
-                if prompt_count < 3:
-                    prompt_count += 1
-                    print(f"[info] [record] Detected silence for {FIRST_SILENCE_S}s (Prompt #{prompt_count}/3). Asking to continue...", flush=True)
-                    speak("Still listening?")
-                    last_voice = time.time() # Reset voice timestamp to resume/give 3 more seconds
-                    continue
+            # Voice detection logic (with feedback muting check)
+            if now >= mute_until:
+                if rms_val > threshold:
+                    is_voice = True
+                    
+            # FSM Transitions
+            if state == "LISTENING":
+                if is_voice:
+                    print(f"[info] [record] Voice detected (RMS={rms_val:.0f} > threshold={threshold:.0f})", flush=True)
+                    last_voice = now
+                    state = "VOICE_DETECTED"
+                elif now - start > NO_SPEECH_GIVEUP_S:
+                    print("[info] [record] No speech detected within timeout. Giving up.", flush=True)
+                    state = "STOP_RECORDING"
+                    
+            elif state == "VOICE_DETECTED":
+                if is_voice:
+                    last_voice = now
                 else:
-                    print(f"[info] [record] Max prompts reached ({prompt_count}). Stopping recording.", flush=True)
-                    break
+                    # Adaptive threshold tracking on non-speech frames
+                    ambient = ambient * 0.95 + rms_val * 0.05
+                    threshold = min(max(150., ambient * 1.2), 3000.)
+                    
+                    if now - last_voice >= 0.5: # short debounce before declaring silence
+                        state = "WAITING_FOR_SILENCE"
+                        
+            elif state == "WAITING_FOR_SILENCE":
+                if is_voice:
+                    print(f"[info] [record] Voice detected again (RMS={rms_val:.0f} > threshold={threshold:.0f})", flush=True)
+                    last_voice = now
+                    # We reset prompt_count when user speaks again
+                    prompt_count = 0
+                    state = "VOICE_DETECTED"
+                else:
+                    # Adaptive threshold tracking
+                    ambient = ambient * 0.95 + rms_val * 0.05
+                    threshold = min(max(150., ambient * 1.2), 3000.)
+                    
+                    silence = now - last_voice
+                    if silence >= FIRST_SILENCE_S:
+                        if prompt_count == 0:
+                            state = "PROMPT_1"
+                        elif prompt_count == 1:
+                            state = "PROMPT_2"
+                        elif prompt_count == 2:
+                            state = "PROMPT_3"
+                        else:
+                            print(f"[info] [record] Max prompts reached ({prompt_count}). Stopping recording.", flush=True)
+                            state = "STOP_RECORDING"
+                            
+            elif state in ("PROMPT_1", "PROMPT_2", "PROMPT_3"):
+                prompt_count += 1
+                print(f"[info] [record] Detected silence for {FIRST_SILENCE_S}s (Prompt #{prompt_count}/3). Asking to continue...", flush=True)
+                
+                # TTS Playback
+                speak("Still listening?")
+                
+                # Mute/cooldown window (1.5 seconds) to avoid feedback
+                mute_until = time.time() + 1.5
+                last_voice = time.time() # Reset voice timestamp to resume/give 3 more seconds
+                
+                state = "WAITING_FOR_SILENCE"
+                
     return np.concatenate(collected) if collected else np.array([],dtype=np.int16)
 
 # ─── CHIME ────────────────────────────────────────────────────────────────────
@@ -572,28 +648,44 @@ def vaha_loop():
     speak("Vaha is ready. Say Marvin to begin.")
     while True:
         if listen_for_wake_word():
+            global GLOBAL_TTS_TIME
+            GLOBAL_TTS_TIME = 0.0
+            t_pipeline_start = time.time()
+            
             print("[info] [main] Wake word detected. Transitioning to recording stage...", flush=True)
             broadcast_event("capture_started")
             play_chime()
             time.sleep(2.0)
             broadcast_event("recording")
+            
+            t_rec_start = time.time()
             audio = record_thought(device)
+            t_rec_end = time.time()
+            rec_duration = t_rec_end - t_rec_start
+            
             print("[info] [main] Recording finished. Transitioning to processing stage...", flush=True)
             broadcast_event("capture_finished")
             
             if audio.size == 0:
                 print("[info] [main] No audio captured. Returning to listening.", flush=True)
-                speak("I didn't hear anything."); continue
+                speak("I didn't hear anything.")
+                continue
                 
             print(f"{_ts()}[info] [main] Transcribing audio with Whisper...", flush=True)
             broadcast_event("whisper_processing")
             
             audio_16k = resample_poly(audio,1,3).astype(np.int16)
+            
+            t_whisper_start = time.time()
             text = transcribe(audio_16k)
+            t_whisper_end = time.time()
+            whisper_duration = t_whisper_end - t_whisper_start
+            
             print(f"{_ts()}[info] [main] Heard: '{text}'", flush=True)
             if not text:
                 print("[info] [main] Transcription resulted in empty text. Returning to listening.", flush=True)
-                speak("I didn't catch that."); continue
+                speak("I didn't catch that.")
+                continue
             if any(p in text.lower() for p in READ_PHRASES):
                 print("[info] [main] Detected read phrase. Reading back notes...", flush=True)
                 speak("Reading your recent notes.")
@@ -609,6 +701,7 @@ def vaha_loop():
             sensors = get_sensors()
             if sensors: print(f"[info] [main] Sensors: {sensors}", flush=True)
             
+            t_save_start = time.time()
             print("[info] [main] Saving capture locally...", flush=True)
             with open(NOTES_FILE,"a") as f:
                 f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] {text}\n")
@@ -626,8 +719,12 @@ def vaha_loop():
                 print("[info] [main] Capture saved locally successfully.", flush=True)
             except Exception as e:
                 print(f"[info] [main] Capture save error: {e}", flush=True)
-
+            t_save_end = time.time()
+            save_duration = t_save_end - t_save_start
+            
+            notion_duration = 0.0
             if NOTION_SYNC_ENABLED:
+                t_notion_start = time.time()
                 print("[info] [main] Syncing capture to Notion...", flush=True)
                 try:
                     push_thought(text, sensors=sensors)
@@ -636,10 +733,22 @@ def vaha_loop():
                 except Exception as e:
                     print(f"[info] [main] Notion error: {e}", flush=True)
                     speak("Saved locally. Notion sync failed.")
+                t_notion_end = time.time()
+                notion_duration = t_notion_end - t_notion_start
             else:
                 print("[info] [main] Notion sync is disabled. Skipping sync.", flush=True)
                 speak("Saved locally.")
-
+                
+            t_pipeline_end = time.time()
+            total_duration = t_pipeline_end - t_pipeline_start
+            
+            print(f"[perf] Recording: {rec_duration:.2f}s", flush=True)
+            print(f"[perf] Whisper: {whisper_duration:.2f}s", flush=True)
+            print(f"[perf] Save Capture: {save_duration:.2f}s", flush=True)
+            print(f"[perf] Notion Sync: {notion_duration:.2f}s", flush=True)
+            print(f"[perf] TTS: {GLOBAL_TTS_TIME:.2f}s", flush=True)
+            print(f"[perf] Total Pipeline: {total_duration:.2f}s", flush=True)
+            
         time.sleep(0.1)
 
 import threading
