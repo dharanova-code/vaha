@@ -6,6 +6,8 @@
  * If the device version is below the minimum, a firmware update prompt is shown.
  */
 
+import { appConfig } from "@core/config/AppConfig";
+
 /** The API version this app natively implements. */
 export const CURRENT_APP_API_VERSION = "v1" as const;
 
@@ -23,7 +25,7 @@ export const SUPPORTED_API_VERSIONS: readonly string[] = ["v1"] as const;
 export const API_BASE_PATH = "/api/v1" as const;
 
 /** The default port the device HTTP server listens on. */
-export const DEVICE_HTTP_PORT = 8080 as const;
+export const DEVICE_HTTP_PORT = appConfig.defaultDevicePort;
 
 /** mDNS service type used for device discovery. */
 export const MDNS_SERVICE_TYPE = "_vaha._tcp" as const;
@@ -53,4 +55,4 @@ export const TRANSFER_RETRY_MAX_DELAY_MS = 60_000 as const;
  *          derived from the BLE-exchanged shared secret before any production build.
  *          CI must enforce that this constant is never present in a release binary.
  */
-export const DEV_STATIC_TOKEN = process.env["EXPO_PUBLIC_DEV_DEVICE_TOKEN"] ?? "" as const;
+export const DEV_STATIC_TOKEN = process.env["EXPO_PUBLIC_DEV_DEVICE_TOKEN"] ?? appConfig.defaultDeviceToken;

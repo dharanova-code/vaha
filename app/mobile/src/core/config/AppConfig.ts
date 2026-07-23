@@ -33,6 +33,9 @@ export interface AppConfig {
   readonly database: DatabaseConfig;
   readonly storage: StorageConfig;
   readonly useMockDevice: boolean;
+  readonly defaultDeviceIp: string;
+  readonly defaultDevicePort: number;
+  readonly defaultDeviceToken: string;
 }
 
 export const appConfig: AppConfig = Object.freeze({
@@ -44,5 +47,8 @@ export const appConfig: AppConfig = Object.freeze({
     keystoreAlias: parsedEnv.SECURE_KEYSTORE_ALIAS,
   }),
   useMockDevice: parsedEnv.USE_MOCK_DEVICE,
+  defaultDeviceIp: "192.168.88.28",
+  defaultDevicePort: 8080,
+  defaultDeviceToken: "vaha-dev-2026",
 });
 export type { AppConfig as AppConfigType };

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { Container } from "@core/di/Container";
 import { SettingsRepository } from "../repositories/SettingsRepository";
+import { appConfig } from "@core/config/AppConfig";
 
 export interface SettingsState {
   serverIp: string;
@@ -14,7 +15,7 @@ export interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  serverIp: "192.168.1.100", // Default fallback
+  serverIp: appConfig.defaultDeviceIp, // Default fallback
   autoSync: true,
   retentionDays: 30, // Default 30 days retention
 
@@ -30,7 +31,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       const retention = retRes.isSuccess ? retRes.getValueOrThrow()?.value : undefined;
       
       set({ 
-        serverIp: ip ?? "192.168.1.100", 
+        serverIp: ip ?? appConfig.defaultDeviceIp, 
         autoSync: sync === "true",
         retentionDays: retention ? parseInt(retention, 10) : 30
       });
