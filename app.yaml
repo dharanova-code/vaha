@@ -1,5 +1,6 @@
 name: Vaha
 icon: 🎙️
-ports: []
+ports:
+  - 8080
 bricks: []
 network_mode: "host"
