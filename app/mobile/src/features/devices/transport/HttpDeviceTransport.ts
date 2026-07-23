@@ -69,52 +69,82 @@ export class HttpDeviceTransport implements DeviceTransport {
     return this._isConnected;
   }
 
-  async get<T>(path: string): Promise<Result<T, CommunicationError>> {
+  private async _request<T>(
+    method: string,
+    path: string,
+    options: { body?: object; timeoutMs?: number } = {}
+  ): Promise<Result<T, CommunicationError>> {
     const url = `${this.baseUrl}${path}`;
-    this.logger.debug(`[COMM] GET ${path}`);
-    try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: this.headers,
-      });
-      return this._handleJsonResponse<T>("GET", path, response);
-    } catch (error) {
-      return Result.fail(new DeviceRequestError("GET", path, undefined, error));
+    const timeout = options.timeoutMs ?? 5000;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    this.logger.info(`[Transport] ${method} ${path}`);
+
+    const init: RequestInit = {
+      method,
+      headers: this.headers,
+      signal: controller.signal,
+    };
+    if (options.body) {
+      init.body = JSON.stringify(options.body);
     }
+
+    try {
+      const response = await fetch(url, init);
+      clearTimeout(id);
+
+      this.logger.info(`[Transport] Status ${response.status}`);
+
+      if (response.status === 401) {
+        this.logger.info(`[Transport] Unauthorized`);
+        this._isConnected = false;
+        return Result.fail(new AuthenticationError());
+      }
+
+      if (!response.ok) {
+        this._isConnected = false;
+        return Result.fail(new DeviceRequestError(method, path, response.status));
+      }
+
+      try {
+        const text = await response.text();
+        if (!text) {
+          return Result.fail(new DeviceRequestError(method, path, response.status, "Empty response body"));
+        }
+        const data = JSON.parse(text) as T;
+        this._isConnected = true;
+        return Result.ok(data);
+      } catch (err) {
+        this.logger.info(`[Transport] Invalid response`);
+        return Result.fail(new DeviceRequestError(method, path, response.status, "Invalid JSON response"));
+      }
+
+    } catch (error: any) {
+      clearTimeout(id);
+      this._isConnected = false;
+      if (error.name === "AbortError") {
+        this.logger.info(`[Transport] Timeout`);
+        return Result.fail(new DeviceRequestError(method, path, undefined, new Error("Request timeout")));
+      }
+      this.logger.info(`[Transport] Server unavailable`);
+      return Result.fail(new DeviceRequestError(method, path, undefined, error));
+    }
+  }
+
+  async get<T>(path: string): Promise<Result<T, CommunicationError>> {
+    return this._request<T>("GET", path);
   }
 
   async post<T, B extends object>(
     path: string,
     body: B,
   ): Promise<Result<T, CommunicationError>> {
-    const url = `${this.baseUrl}${path}`;
-    this.logger.debug(`[COMM] POST ${path}`);
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: this.headers,
-        body: JSON.stringify(body),
-      });
-      return this._handleJsonResponse<T>("POST", path, response);
-    } catch (error) {
-      return Result.fail(new DeviceRequestError("POST", path, undefined, error));
-    }
+    return this._request<T>("POST", path, { body });
   }
 
   async delete<T>(path: string): Promise<Result<T, CommunicationError>> {
-    const url = `${this.baseUrl}${path}`;
-    this.logger.debug(`[COMM] DELETE ${path}`);
-    try {
-      const response = await fetch(url, {
-        method: "DELETE",
-        headers: this.headers,
-      });
-      return this._handleJsonResponse<T>("DELETE", path, response);
-    } catch (error) {
-      return Result.fail(
-        new DeviceRequestError("DELETE", path, undefined, error),
-      );
-    }
+    return this._request<T>("DELETE", path);
   }
 
   async upload<T>(
@@ -124,7 +154,11 @@ export class HttpDeviceTransport implements DeviceTransport {
     mimeType: string
   ): Promise<Result<T, CommunicationError>> {
     const url = `${this.baseUrl}${path}`;
-    this.logger.debug(`[COMM] UPLOAD ${path} (file: ${fileUri})`);
+    const timeout = 30000;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    this.logger.info(`[Transport] POST ${path}`);
     try {
       const formData = new FormData();
       const fileData = {
@@ -132,10 +166,8 @@ export class HttpDeviceTransport implements DeviceTransport {
         name: fileUri.split("/").pop() ?? "file",
         type: mimeType,
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       formData.append(fieldName, fileData as any);
 
-      // We don't use this.headers because fetch sets its own multipart/form-data boundary
       const headers = {
         Authorization: `Bearer ${this.headers.Authorization?.split(" ")[1] ?? ""}`,
         "X-Device-UUID": this.headers["X-Device-UUID"] ?? "",
@@ -145,9 +177,38 @@ export class HttpDeviceTransport implements DeviceTransport {
         method: "POST",
         headers,
         body: formData,
+        signal: controller.signal,
       });
-      return this._handleJsonResponse<T>("POST", path, response);
-    } catch (error) {
+      clearTimeout(id);
+
+      this.logger.info(`[Transport] Status ${response.status}`);
+      if (response.status === 401) {
+        this.logger.info(`[Transport] Unauthorized`);
+        this._isConnected = false;
+        return Result.fail(new AuthenticationError());
+      }
+
+      if (!response.ok) {
+        this._isConnected = false;
+        return Result.fail(new DeviceRequestError("POST", path, response.status));
+      }
+
+      try {
+        const data = (await response.json()) as T;
+        this._isConnected = true;
+        return Result.ok(data);
+      } catch (err) {
+        this.logger.info(`[Transport] Invalid response`);
+        return Result.fail(new DeviceRequestError("POST", path, response.status, "Invalid JSON response"));
+      }
+    } catch (error: any) {
+      clearTimeout(id);
+      this._isConnected = false;
+      if (error.name === "AbortError") {
+        this.logger.info(`[Transport] Timeout`);
+        return Result.fail(new DeviceRequestError("POST", path, undefined, new Error("Request timeout")));
+      }
+      this.logger.info(`[Transport] Server unavailable`);
       return Result.fail(new DeviceRequestError("POST", path, undefined, error));
     }
   }
@@ -158,7 +219,11 @@ export class HttpDeviceTransport implements DeviceTransport {
     onProgress?: (bytesReceived: number, totalBytes: number) => void,
   ): Promise<Result<ArrayBuffer, CommunicationError>> {
     const url = `${this.baseUrl}${path}`;
-    this.logger.debug(`[COMM] DOWNLOAD ${path} (offset=${resumeFromByte})`);
+    const timeout = 60000;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    this.logger.info(`[Transport] GET ${path}`);
 
     const rangeHeaders: Record<string, string> = {
       ...this.headers,
@@ -171,13 +236,20 @@ export class HttpDeviceTransport implements DeviceTransport {
       const response = await fetch(url, {
         method: "GET",
         headers: rangeHeaders,
+        signal: controller.signal,
       });
+      clearTimeout(id);
+
+      this.logger.info(`[Transport] Status ${response.status}`);
 
       if (response.status === 401) {
+        this.logger.info(`[Transport] Unauthorized`);
+        this._isConnected = false;
         return Result.fail(new AuthenticationError());
       }
 
       if (!response.ok && response.status !== 206) {
+        this._isConnected = false;
         return Result.fail(
           new DeviceRequestError("GET", path, response.status),
         );
@@ -216,7 +288,14 @@ export class HttpDeviceTransport implements DeviceTransport {
 
       this._isConnected = true;
       return Result.ok(combined.buffer);
-    } catch (error) {
+    } catch (error: any) {
+      clearTimeout(id);
+      this._isConnected = false;
+      if (error.name === "AbortError") {
+        this.logger.info(`[Transport] Timeout`);
+        return Result.fail(new DeviceRequestError("GET", path, undefined, new Error("Request timeout")));
+      }
+      this.logger.info(`[Transport] Server unavailable`);
       return Result.fail(new DeviceRequestError("GET", path, undefined, error));
     }
   }
