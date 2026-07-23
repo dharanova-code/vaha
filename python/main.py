@@ -658,8 +658,18 @@ sensor_service.start()
 t_vaha = threading.Thread(target=vaha_loop, daemon=True)
 t_vaha.start()
 
+def run_server_safe():
+    try:
+        print("[debug] Starting HTTP server...", flush=True)
+        run_server()
+        print("[debug] HTTP server exited normally.", flush=True)
+    except Exception:
+        import traceback
+        print("[debug] HTTP server crashed:", flush=True)
+        traceback.print_exc()
+
 # Start the Edge Server (HTTP + WS)
-t_server = threading.Thread(target=run_server, daemon=True)
+t_server = threading.Thread(target=run_server_safe, daemon=True)
 t_server.start()
 
 App.run()
