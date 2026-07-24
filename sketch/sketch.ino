@@ -19,7 +19,7 @@ uint32_t readTVOC() {
     delay(50);
     Wire.beginTransmission(AGS02MA_ADDR);
     Wire.write(0x00);
-    uint8_t err = Wire.endTransmission();
+    uint8_t err = Wire.endTransmission(false);
     if (err != 0) {
         Wire.setClock(100000);
         return 8888 + err;
@@ -51,10 +51,10 @@ String sensors_get() {
     float flowLpm = (dt > 0.1) ? (pulses / dt) / 7.5 : 0.0;
     totalLiters += (flowLpm / 60.0) * dt;
 
-    detachInterrupt(digitalPinToInterrupt(FLOW_PIN));
+    noInterrupts();
     float temp = dht.readTemperature();
     float hum  = dht.readHumidity();
-    attachInterrupt(digitalPinToInterrupt(FLOW_PIN), pulseISR, RISING);
+    interrupts();
 
     uint32_t tvoc = readTVOC();
     String s = "";
