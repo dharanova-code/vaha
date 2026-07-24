@@ -51,10 +51,10 @@ String sensors_get() {
     float flowLpm = (dt > 0.1) ? (pulses / dt) / 7.5 : 0.0;
     totalLiters += (flowLpm / 60.0) * dt;
 
-    noInterrupts();
+    detachInterrupt(digitalPinToInterrupt(FLOW_PIN));
     float temp = dht.readTemperature();
     float hum  = dht.readHumidity();
-    interrupts();
+    attachInterrupt(digitalPinToInterrupt(FLOW_PIN), pulseISR, RISING);
 
     uint32_t tvoc = readTVOC();
     String s = "";
