@@ -19,11 +19,12 @@
 *   **Repository Layer (Milestone 3):** Feature-first decoupled repositories (Capture, Collection, Tag, Device, Settings, Sync) implementing contracts, converting DB exceptions to `Result` monads, and registered inside the global DI Container.
 *   **Application Bootstrap & Runtime Lifecycle (Milestone 4):** Modular bootstrap pipeline (Load Environment, Logger, DI, Database, Migrations, Repositories, Runtime Health, storage/FS/platform stubs), BootstrapManager, RuntimeState singleton, AppLifecycle manager, and StartupHealth verification.
 *   **Navigation Shell (Milestone 5):** Expo Router folder structure (tabs, modals, stacks, error layouts), custom routing layouts, global error boundaries, placeholder pages, deep linking configs, and navigation guard abstractions.
+*   **Approved UI Integration - Home Screen (Milestone 6B.1):** Muji Minimal home screen greeting, device status banner, continuing anchor cards, action controls, insights preview, timeline list, and Jest tests.
 *   **SDK Upgrade (Infrastructure):** Upgraded from Expo SDK 51 → SDK 54 (expo 54.0.36, react-native 0.81.5, react 19.1.0, expo-router 6.0.24). All dependencies verified via `npx expo-doctor` (18/18 checks passed). Placeholder assets created. Compatibility fixes applied to `LocalFileSystem.ts` and test mocks.
 
 ### Pending Implementations
 *   **State:** Zustand application stores.
-*   **Approved UI Integration:** Incorporate approved Stitch wireframes into mobile views.
+*   **Approved UI Integration:** Incorporate remaining approved Stitch wireframes (Captures, Search, Insights, Device Setup) into mobile views.
 *   **BLE Pairing:** Native Bluetooth provisioning and setup.
 *   **Capture Engine:** Core audio streaming and transcription.
 *   **Search & Insights:** Local semantic indexing.

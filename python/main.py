@@ -33,6 +33,7 @@ from scipy.signal import resample_poly
 from notion_client import Client
 from edge_impulse_linux.runner import ImpulseRunner
 from arduino.app_utils import App, Bridge
+import audio
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 SAMPLE_RATE        = 48000
@@ -474,12 +475,9 @@ def record_thought(device):
     print("[info] [record] Initializing recording...", flush=True)
     collected, start = [], time.time()
     
-    calib = sd.rec(int(0.4*SAMPLE_RATE),samplerate=SAMPLE_RATE,channels=1,
-                   dtype="int16",device=device)
-    sd.wait()
-    ambient = _rms(np.squeeze(calib))
-    threshold = min(max(150., ambient*1.2), 3000.)
-    print(f"[info] [record] Ambient RMS={ambient:.0f} -> threshold={threshold:.0f}", flush=True)
+    # Reset VAD state
+    audio.reset_vad()
+    
     print(f"[info] [record] Listening... Max duration: {MAX_RECORD_S}s", flush=True)
     
     # FSM variables
@@ -491,10 +489,7 @@ def record_thought(device):
     
     last_log_time = 0.0
     
-    with sd.InputStream(samplerate=SAMPLE_RATE,channels=1,dtype="int16",
-                        blocksize=CHUNK_SIZE,device=device) as stream:
-        stream.start()
-        
+    with audio.MicrophoneStream(device, sample_rate=SAMPLE_RATE, chunk_size=CHUNK_SIZE) as stream:
         state = "LISTENING"
         
         while True:
@@ -521,8 +516,7 @@ def record_thought(device):
             if state == "STOP_RECORDING":
                 break
                 
-            data, _ = stream.read(CHUNK_SIZE)
-            chunk = np.squeeze(data).astype(np.int16)
+            chunk = stream.read()
             collected.append(chunk)
             
             rms_val = _rms(chunk)
@@ -530,13 +524,12 @@ def record_thought(device):
             
             # Voice detection logic (with feedback muting check)
             if now >= mute_until:
-                if rms_val > threshold:
-                    is_voice = True
+                is_voice = audio.is_speech(chunk)
                     
             # FSM Transitions
             if state == "LISTENING":
                 if is_voice:
-                    print(f"[info] [record] Voice detected (RMS={rms_val:.0f} > threshold={threshold:.0f})", flush=True)
+                    print(f"[info] [record] Voice detected (RMS={rms_val:.0f})", flush=True)
                     last_voice = now
                     state = "VOICE_DETECTED"
                 elif now - start > NO_SPEECH_GIVEUP_S:
@@ -547,25 +540,17 @@ def record_thought(device):
                 if is_voice:
                     last_voice = now
                 else:
-                    # Adaptive threshold tracking on non-speech frames
-                    ambient = ambient * 0.95 + rms_val * 0.05
-                    threshold = min(max(150., ambient * 1.2), 3000.)
-                    
                     if now - last_voice >= 0.5: # short debounce before declaring silence
                         state = "WAITING_FOR_SILENCE"
                         
             elif state == "WAITING_FOR_SILENCE":
                 if is_voice:
-                    print(f"[info] [record] Voice detected again (RMS={rms_val:.0f} > threshold={threshold:.0f})", flush=True)
+                    print(f"[info] [record] Voice detected again (RMS={rms_val:.0f})", flush=True)
                     last_voice = now
                     # We reset prompt_count when user speaks again
                     prompt_count = 0
                     state = "VOICE_DETECTED"
                 else:
-                    # Adaptive threshold tracking
-                    ambient = ambient * 0.95 + rms_val * 0.05
-                    threshold = min(max(150., ambient * 1.2), 3000.)
-                    
                     silence = now - last_voice
                     if silence >= FIRST_SILENCE_S:
                         if prompt_count == 0:
@@ -590,6 +575,8 @@ def record_thought(device):
                 last_voice = time.time() # Reset voice timestamp to resume/give 3 more seconds
                 
                 state = "WAITING_FOR_SILENCE"
+                
+    return np.concatenate(collected) if collected else np.array([],dtype=np.int16)
                 
     return np.concatenate(collected) if collected else np.array([],dtype=np.int16)
 
