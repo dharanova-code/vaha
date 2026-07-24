@@ -33,9 +33,18 @@
   - Implement Expo Router folder structure and tab navigation routing.
   - **Status:** Completed
 
-- [ ] **Milestone 6: Approved UI Integration**
-  - Incorporate approved Stitch wireframes into mobile views.
-  - **Status:** Pending
+- [x] **Milestone 6A: Design System Foundation**
+  - Setup core design system theme, styling tokens, and 30+ reusable presentation/control/telemetry components.
+  - **Status:** Completed
+
+- [/] **Milestone 6B: Approved UI Integration**
+  - Integrate approved Stitch wireframes into mobile views.
+  - [x] Milestone 6B.1: Vaha Home Screen Integration (with mock layer, timeline, continuing anchors, and tests).
+  - [ ] Milestone 6B.2: Vaha Captures Screen Integration.
+  - [ ] Milestone 6B.3: Vaha Insights Screen Integration.
+  - [ ] Milestone 6B.4: Vaha Device Screen Integration.
+  - [ ] Milestone 6B.5: Vaha Settings Screen Integration.
+  - **Status:** In Progress
 
 - [ ] **Milestone 7: BLE Pairing**
   - Configure native Bluetooth pairing and status handshakes.

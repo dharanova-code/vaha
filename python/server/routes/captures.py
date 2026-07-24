@@ -5,6 +5,7 @@ import tempfile
 import sys
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 
 from server.models.schemas import CaptureMetadata, DeleteResponse
 from server.services.capture_service import capture_service
