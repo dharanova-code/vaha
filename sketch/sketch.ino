@@ -50,12 +50,8 @@ String sensors_get() {
     interrupts();
     float flowLpm = (dt > 0.1) ? (pulses / dt) / 7.5 : 0.0;
     totalLiters += (flowLpm / 60.0) * dt;
-
-    noInterrupts();
     float temp = dht.readTemperature();
     float hum  = dht.readHumidity();
-    interrupts();
-
     uint32_t tvoc = readTVOC();
     String s = "";
     s += isnan(temp) ? "T:nan" : "T:" + String(temp, 1);
