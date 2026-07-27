@@ -40,6 +40,7 @@ SAMPLE_RATE        = 48000
 MODEL_RATE         = 16000
 CHUNK_MS           = 100
 CHUNK_SIZE         = int(SAMPLE_RATE * CHUNK_MS / 1000)
+RMS_THRESHOLD      = 300
 FIRST_SILENCE_S    = 3.0
 SECOND_SILENCE_S   = 7.0
 MAX_RECORD_S       = 600
@@ -475,8 +476,6 @@ def record_thought(device):
     print("[info] [record] Initializing recording...", flush=True)
     collected, start = [], time.time()
     
-    # Reset VAD state
-    audio.reset_vad()
     
     print(f"[info] [record] Listening... Max duration: {MAX_RECORD_S}s", flush=True)
     
@@ -524,7 +523,7 @@ def record_thought(device):
             
             # Voice detection logic (with feedback muting check)
             if now >= mute_until:
-                is_voice = audio.is_speech(chunk)
+                is_voice = rms_val > RMS_THRESHOLD
                     
             # FSM Transitions
             if state == "LISTENING":

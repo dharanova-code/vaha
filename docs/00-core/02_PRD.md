@@ -11,7 +11,7 @@ The Vaha hardware is a single-purpose, ambient device designed for friction-free
 ### 1.1 Voice Capture & Wakefulness
 *   **Local Wake Word Matching**: The device must continuously evaluate ambient audio for the wake word with zero cloud dependency.
 *   **Recording Indicator**: A physical LED indicator must display a distinct visual pattern when recording is active.
-*   **Voice Activity Detection (VAD)**: The device must dynamically identify when the user starts and stops speaking.
+*   **Voice Activity Detection (RMS)**: The device must dynamically identify when the user starts and stops speaking using an RMS energy threshold method.
 *   **Automatic Cutoff**: Recording must stop automatically when a continuous period of silence is detected or a manual termination phrase is recognized.
 *   **Local Buffer**: Captured audio must be stored locally in high-quality, uncompressed format until successful sync.
 
