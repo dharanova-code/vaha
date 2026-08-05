@@ -80,10 +80,6 @@ export default function OnboardingScreen() {
 
     if (isExpoGo) {
       setNotifStatus("denied");
-      Alert.alert(
-        "Notifications Unsupported",
-        "Android push notifications are not supported in Expo Go on SDK 54.\n\nPlease use a custom Development Build."
-      );
       return;
     }
 

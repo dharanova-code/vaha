@@ -56,10 +56,10 @@ export class NativeBleProvisioningService implements ProvisioningService {
         onError(error);
         return;
       }
-      if (scannedDevice && (scannedDevice.name?.includes("VAHA") || scannedDevice.name?.includes("Uno Q"))) {
+      if (scannedDevice) {
         onDeviceFound({
           id: scannedDevice.id,
-          name: scannedDevice.name || "VAHA Device",
+          name: scannedDevice.name || "Unknown Device",
           rssi: scannedDevice.rssi,
         });
       }

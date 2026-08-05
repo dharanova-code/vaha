@@ -16,6 +16,8 @@ export const Screen: React.FC<ScreenProps> = ({
       style={styles.container}
       contentContainerStyle={[styles.scrollContent, style]}
       refreshControl={refreshControl}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       {children}
     </ScrollView>
@@ -26,9 +28,10 @@ export const Screen: React.FC<ScreenProps> = ({
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
+    // Only top/left/right — bottom is handled by tab bar or modal chrome
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {withMarginThread && <View style={styles.marginThread} pointerEvents="none" />}
       {content}
     </SafeAreaView>
   );
-};
+};

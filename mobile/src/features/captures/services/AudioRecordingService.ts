@@ -1,10 +1,12 @@
 import { Audio } from "expo-av";
-import * as FS from "expo-file-system";
+import {
+  documentDirectory,
+  makeDirectoryAsync,
+  moveAsync,
+} from "expo-file-system/legacy";
+import * as Crypto from "expo-crypto";
 import { Result } from "../../../core/utils/Result";
 import { Logger } from "../../../core/logger/Logger";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, import/namespace
-const FileSystem = FS as any;
 
 export class AudioRecordingService {
   private recording: Audio.Recording | null = null;
@@ -66,12 +68,12 @@ export class AudioRecordingService {
       }
 
       // Move to a permanent location
-      const uuid = crypto.randomUUID();
-      const audioDir = `${FileSystem.documentDirectory}vaha/audio/`;
-      await FileSystem.makeDirectoryAsync(audioDir, { intermediates: true });
+      const uuid = Crypto.randomUUID();
+      const audioDir = `${documentDirectory}vaha/audio/`;
+      await makeDirectoryAsync(audioDir, { intermediates: true });
       
       const newUri = `${audioDir}${uuid}.wav`;
-      await FileSystem.moveAsync({
+      await moveAsync({
         from: uri,
         to: newUri
       });

@@ -5,7 +5,7 @@ import { Container } from "../../src/core/di/Container";
 import { AudioRecordingService } from "../../src/features/captures/services/AudioRecordingService";
 import { DeviceClient } from "../../src/features/devices/client/DeviceClient";
 import { useCaptureStore } from "../../src/features/devices/stores/captureStore";
-import * as FS from "expo-file-system";
+import { deleteAsync, documentDirectory } from "expo-file-system/legacy";
 import { appConfig } from "../../src/core/config/AppConfig";
 import {
   Screen,
@@ -18,7 +18,7 @@ import {
   TopBar
 } from "../../src/design-system";
 
-const FileSystem = FS as any;
+
 
 export default function NewCaptureModal() {
   const router = useRouter();
@@ -79,7 +79,7 @@ export default function NewCaptureModal() {
     
     if (stopResult.isSuccess) {
       const uuid = stopResult.getValueOrThrow();
-      const localWavPath = `${FileSystem.documentDirectory}vaha/audio/${uuid}.wav`;
+      const localWavPath = `${documentDirectory}vaha/audio/${uuid}.wav`;
       
       try {
         const { TranscriptionService } = require("../../src/features/captures/services/TranscriptionService");
@@ -89,7 +89,7 @@ export default function NewCaptureModal() {
         
         // PRIVACY FIRST: Delete local audio file immediately after transcribing
         try {
-          await FileSystem.deleteAsync(localWavPath, { idempotent: true });
+          await deleteAsync(localWavPath, { idempotent: true });
         } catch (e) {
           // ignore cleanup failures
         }
