@@ -51,24 +51,22 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="insights/index"
-        options={{
-          title: "Insights",
-          tabBarIcon: ({ color, size }) => <Feather name="bar-chart-2" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="device/index"
+        name="device"
         options={{
           title: "Device",
           tabBarIcon: ({ color, size }) => <Feather name="cpu" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
+        name="insights/index"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="settings/index"
         options={{
-          title: "Settings",
-          tabBarIcon: ({ color, size }) => <Feather name="settings" color={color} size={size} />,
+          href: null,
         }}
       />
     </Tabs>

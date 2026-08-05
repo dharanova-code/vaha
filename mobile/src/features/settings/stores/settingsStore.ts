@@ -7,10 +7,16 @@ export interface SettingsState {
   serverIp: string;
   autoSync: boolean;
   retentionDays: number;
+  userName: string;
+  userEmail: string;
+  groqApiKey: string;
   
   setServerIp: (ip: string) => void;
   setAutoSync: (autoSync: boolean) => void;
   setRetentionDays: (days: number) => void;
+  setUserName: (name: string) => void;
+  setUserEmail: (email: string) => void;
+  setGroqApiKey: (key: string) => void;
   loadSettings: () => Promise<void>;
 }
 
@@ -18,6 +24,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   serverIp: appConfig.defaultDeviceIp, // Default fallback
   autoSync: true,
   retentionDays: 30, // Default 30 days retention
+  userName: "",
+  userEmail: "",
+  groqApiKey: "",
 
   loadSettings: async () => {
     try {
@@ -25,15 +34,24 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       const ipRes = await repo.get("serverIp");
       const syncRes = await repo.get("autoSync");
       const retRes = await repo.get("retentionDays");
+      const nameRes = await repo.get("userName");
+      const emailRes = await repo.get("userEmail");
+      const keyRes = await repo.get("groqApiKey");
       
       const ip = ipRes.isSuccess ? ipRes.getValueOrThrow()?.value : undefined;
       const sync = syncRes.isSuccess ? syncRes.getValueOrThrow()?.value : undefined;
       const retention = retRes.isSuccess ? retRes.getValueOrThrow()?.value : undefined;
+      const name = nameRes.isSuccess ? nameRes.getValueOrThrow()?.value : undefined;
+      const email = emailRes.isSuccess ? emailRes.getValueOrThrow()?.value : undefined;
+      const key = keyRes.isSuccess ? keyRes.getValueOrThrow()?.value : undefined;
       
       set({ 
         serverIp: ip ?? appConfig.defaultDeviceIp, 
         autoSync: sync === "true",
-        retentionDays: retention ? parseInt(retention, 10) : 30
+        retentionDays: retention ? parseInt(retention, 10) : 30,
+        userName: name ?? "",
+        userEmail: email ?? "",
+        groqApiKey: key ?? "",
       });
     } catch (e) {
       console.warn("Failed to load settings", e);
@@ -65,6 +83,33 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       await repo.set("retentionDays", retentionDays.toString());
     } catch (e) {
       console.warn("Failed to persist retentionDays", e);
+    }
+  },
+  setUserName: async (userName: string) => {
+    set({ userName });
+    try {
+      const repo = Container.getInstance().resolve<SettingsRepository>("SettingsRepository");
+      await repo.set("userName", userName);
+    } catch (e) {
+      console.warn("Failed to persist userName", e);
+    }
+  },
+  setUserEmail: async (userEmail: string) => {
+    set({ userEmail });
+    try {
+      const repo = Container.getInstance().resolve<SettingsRepository>("SettingsRepository");
+      await repo.set("userEmail", userEmail);
+    } catch (e) {
+      console.warn("Failed to persist userEmail", e);
+    }
+  },
+  setGroqApiKey: async (groqApiKey: string) => {
+    set({ groqApiKey });
+    try {
+      const repo = Container.getInstance().resolve<SettingsRepository>("SettingsRepository");
+      await repo.set("groqApiKey", groqApiKey);
+    } catch (e) {
+      console.warn("Failed to persist groqApiKey", e);
     }
   }
 }));

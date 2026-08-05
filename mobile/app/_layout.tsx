@@ -7,6 +7,7 @@ import { StatusBar } from "expo-status-bar";
 import { ApplicationBootstrap } from "../src/core/bootstrap/ApplicationBootstrap";
 import { AppError } from "../src/core/errors/AppError";
 import { ThemeProvider } from "../src/design-system";
+import { PermissionService } from "../src/core/permissions/PermissionService";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -22,6 +23,8 @@ function RootLayout() {
         if (!isMounted) return;
 
         if (result.success) {
+          // Request all runtime permissions immediately after bootstrap
+          await PermissionService.requestAll();
           setBootstrapStatus("ready");
         } else {
           setBootstrapStatus("failed");

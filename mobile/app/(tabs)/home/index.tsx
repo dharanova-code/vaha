@@ -13,7 +13,10 @@ import {
   DeviceCard,
   SensorCard,
   EmptyState,
+  Avatar,
 } from "../../../src/design-system";
+import { Feather } from "@expo/vector-icons";
+import { TouchableOpacity } from "react-native";
 import { useHomeData } from "../../../src/features/home/hooks/useHomeData";
 import { quickActions } from "../../../src/features/home/mock/quickActions";
 import { continuingAnchor } from "../../../src/features/home/mock/recentCaptures";
@@ -41,14 +44,25 @@ export default function HomeScreen() {
       }
     >
 
-      {/* 1. Welcoming Greeting Header */}
+      {/* 1. Welcoming Greeting Header with Top Right Settings & Profile Trigger */}
       <View style={styles.headerContainer} testID="welcome-header">
-        <Text variant="display-lg" style={styles.greeting}>
-          Good Morning
-        </Text>
-        <Text variant="body-md" style={styles.prompt}>
-          What's on your mind?
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextCol}>
+            <Text variant="display-lg" style={styles.greeting}>
+              Good Morning
+            </Text>
+            <Text variant="body-md" style={styles.prompt}>
+              What's on your mind?
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => router.push("/(tabs)/settings" as any)}
+            accessibilityLabel="Open settings and profile"
+          >
+            <Avatar initials="VA" size={40} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 2. Quick Actions */}
@@ -181,6 +195,18 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     marginBottom: 32,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  headerTextCol: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  profileButton: {
+    padding: 2,
   },
   greeting: {
     marginBottom: 8,

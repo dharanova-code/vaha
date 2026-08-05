@@ -25,7 +25,7 @@ export const Button: React.FC<ButtonProps> = ({
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={theme.opacity.active}
+      activeOpacity={0.7}
       style={[
         styles.button,
         styles[variant],
