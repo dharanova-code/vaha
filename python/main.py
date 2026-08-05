@@ -52,13 +52,16 @@ NOTES_FILE         = "/app/notes.txt"
 PIPER_EXE          = "/app/piper/piper"
 PIPER_MODEL        = "/app/models/piper/en_US-lessac-medium.onnx"
 WHISPER_MODEL_DIR  = "/app/models/faster-whisper"
-EIM_PATH           = "/app/models/marvin.eim"
+EIM_PATH           = os.environ.get("EIM_PATH", "models/new-marvin.eim")
+STOP_KEYWORD       = os.environ.get("STOP_KEYWORD", "done")
+STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.60"))
 MIC_RATE           = 48000
 PYAUDIO_DEV      = 1  # CS202 mic
 WAKE_THRESHOLD     = 0.55
 WAKE_CONSEC        = 2
 WAKE_COOLDOWN      = 3.0
 STOP_PHRASES       = ["i'm done","im done","that's all","thats all","that is all"]
+
 READ_PHRASES       = ["read my notes","read my note","read my thoughts","read back"]
 
 # ─── TIMESTAMPS ───────────────────────────────────────────────────────────────
@@ -376,7 +379,13 @@ def self_check():
     global EIM_PATH
     if not os.path.exists(EIM_PATH):
         found = False
-        for alt in ["/app/models/marvin.eim", "models/marvin.eim"]:
+        for alt in [
+            EIM_PATH,
+            "/app/models/new-marvin.eim",
+            "models/new-marvin.eim",
+            "/app/models/marvin.eim",
+            "models/marvin.eim"
+        ]:
             if os.path.exists(alt):
                 EIM_PATH = alt
                 found = True
@@ -385,6 +394,7 @@ def self_check():
             print(f"[error] [check] Wake model missing at {EIM_PATH}", flush=True)
             sys.exit(1)
     print(f"[info] [check] Wake model verified: {EIM_PATH}", flush=True)
+
     
     # 2. Validate Piper voice model
     global PIPER_MODEL
@@ -477,6 +487,21 @@ def record_thought(device):
     collected, start = [], time.time()
     
     
+    # Initialize Edge Impulse stop detector
+    print(f"[info] [record] Initializing Edge Impulse stop phrase detector: {EIM_PATH}", flush=True)
+    stop_detector = None
+    stop_buf = None
+    resample_len = 0
+    try:
+        stop_detector = audio.EdgeImpulseInference(EIM_PATH)
+        model_info = stop_detector.runner.init()
+        n_feat = model_info['model_parameters']['input_features_count']
+        slice_sz = model_info['model_parameters']['slice_size']
+        stop_buf = np.zeros(n_feat, dtype=np.float32)
+        print(f"[info] [record] Stop phrase detector loaded. Stop Keyword: '{STOP_KEYWORD}', Threshold: {STOP_THRESHOLD}", flush=True)
+    except Exception as e:
+        print(f"[error] [record] Failed to initialize Edge Impulse stop detector: {e}. Continuous stop phrase detection will be disabled.", flush=True)
+    
     print(f"[info] [record] Listening... Max duration: {MAX_RECORD_S}s", flush=True)
     
     # FSM variables
@@ -517,6 +542,29 @@ def record_thought(device):
                 
             chunk = stream.read()
             collected.append(chunk)
+            
+            # Run Edge Impulse classification if available
+            if stop_detector is not None and stop_buf is not None:
+                try:
+                    chunk_f32 = chunk.astype(np.float32)
+                    resample_len = int(len(chunk_f32) * MODEL_RATE / SAMPLE_RATE)
+                    resampled_chunk = np.interp(
+                        np.linspace(0, len(chunk_f32) - 1, resample_len),
+                        np.arange(len(chunk_f32)),
+                        chunk_f32
+                    ).astype(np.float32)
+                    
+                    stop_buf = np.roll(stop_buf, -resample_len)
+                    stop_buf[-resample_len:] = resampled_chunk
+                    
+                    best_label, score, latency = stop_detector.classify(stop_buf.tolist())
+                    print(f"[info] [inference] Latency: {latency:.2f}ms | Detected: '{best_label}' | Confidence: {score:.4f}", flush=True)
+                    
+                    if best_label == STOP_KEYWORD and score >= STOP_THRESHOLD:
+                        print(f"[info] [record] Stop keyword '{best_label}' detected with confidence {score:.4f} >= {STOP_THRESHOLD}. Stopping recording.", flush=True)
+                        state = "STOP_RECORDING"
+                except Exception as ex:
+                    print(f"[warn] [inference] Inference step failed: {ex}", flush=True)
             
             rms_val = _rms(chunk)
             is_voice = False
@@ -568,6 +616,7 @@ def record_thought(device):
                 
                 # TTS Playback
                 speak("Still listening?")
+
                 
                 # Mute/cooldown window (1.5 seconds) to avoid feedback
                 mute_until = time.time() + 1.5
@@ -575,9 +624,15 @@ def record_thought(device):
                 
                 state = "WAITING_FOR_SILENCE"
                 
+    if stop_detector is not None:
+        try:
+            stop_detector.close()
+            print("[info] [record] Stop phrase detector stopped.", flush=True)
+        except Exception as e:
+            print(f"[warn] [record] Error stopping Edge Impulse stop detector: {e}", flush=True)
+            
     return np.concatenate(collected) if collected else np.array([],dtype=np.int16)
-                
-    return np.concatenate(collected) if collected else np.array([],dtype=np.int16)
+
 
 # ─── CHIME ────────────────────────────────────────────────────────────────────
 def play_chime():
