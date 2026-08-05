@@ -495,7 +495,6 @@ def record_thought(device):
     print("[info] [record] Initializing recording...", flush=True)
     collected, start = [], time.time()
     
-    
     # Initialize Edge Impulse stop detector
     print(f"[info] [record] Initializing Edge Impulse stop phrase detector: {EIM_PATH}", flush=True)
     stop_detector = None
@@ -513,41 +512,15 @@ def record_thought(device):
     
     print(f"[info] [record] Listening... Max duration: {MAX_RECORD_S}s", flush=True)
     
-    # FSM variables
-    state = "IDLE"
-    last_state = "IDLE"
-    prompt_count = 0
-    last_voice = None
-    mute_until = 0.0
     stop_consec_count = 0
     
-    last_log_time = 0.0
-    
     with audio.MicrophoneStream(device, sample_rate=SAMPLE_RATE, chunk_size=CHUNK_SIZE) as stream:
-        state = "LISTENING"
-        
         while True:
             now = time.time()
             
             # Global safeguards
             if now - start > MAX_RECORD_S:
                 print("[info] [record] Maximum recording duration reached.", flush=True)
-                state = "STOP_RECORDING"
-                
-            silence = 0.0
-            if last_voice is not None:
-                silence = now - last_voice
-                
-            if now - last_log_time >= 1.0 or state != last_state:
-                print("[record]", flush=True)
-                print(f"state={state}", flush=True)
-                print(f"prompt={prompt_count}", flush=True)
-                print(f"silence={silence:.1f}", flush=True)
-                print(f"last_voice={last_voice if last_voice is not None else 'None'}", flush=True)
-                last_log_time = now
-                last_state = state
-                
-            if state == "STOP_RECORDING":
                 break
                 
             chunk = stream.read()
@@ -570,80 +543,21 @@ def record_thought(device):
                     best_label, score, latency = stop_detector.classify(stop_buf.tolist())
                     print(f"[info] [inference] Latency: {latency:.2f}ms | Detected: '{best_label}' | Confidence: {score:.4f}", flush=True)
                     
-                    if best_label == STOP_KEYWORD and score >= STOP_THRESHOLD:
-                        if state in ("VOICE_DETECTED", "WAITING_FOR_SILENCE"):
+                    # Grace period: Ignore first 1.5 seconds to avoid transient start-up false-positives
+                    if now - start > 1.5:
+                        if best_label == STOP_KEYWORD and score >= STOP_THRESHOLD:
                             stop_consec_count += 1
                             print(f"[info] [inference] Stop keyword '{best_label}' detected consecutively: {stop_consec_count}/{STOP_CONSEC} (score={score:.4f})", flush=True)
                             if stop_consec_count >= STOP_CONSEC:
                                 print(f"[info] [record] Stop keyword '{best_label}' triggered stop recording after {stop_consec_count} consecutive detections.", flush=True)
-                                state = "STOP_RECORDING"
+                                break
                         else:
                             stop_consec_count = 0
-                            print(f"[info] [record] Stop keyword '{best_label}' detected (score={score:.4f}) but ignored because state is '{state}' (voice not yet detected).", flush=True)
                     else:
                         stop_consec_count = 0
-
                 except Exception as ex:
                     print(f"[warn] [inference] Inference step failed: {ex}", flush=True)
             
-            rms_val = _rms(chunk)
-            is_voice = False
-            
-            # Voice detection logic (with feedback muting check)
-            if now >= mute_until:
-                is_voice = rms_val > RMS_THRESHOLD
-                    
-            # FSM Transitions
-            if state == "LISTENING":
-                if is_voice:
-                    print(f"[info] [record] Voice detected (RMS={rms_val:.0f})", flush=True)
-                    last_voice = now
-                    state = "VOICE_DETECTED"
-                elif now - start > NO_SPEECH_GIVEUP_S:
-                    print("[info] [record] No speech detected within timeout. Giving up.", flush=True)
-                    state = "STOP_RECORDING"
-                    
-            elif state == "VOICE_DETECTED":
-                if is_voice:
-                    last_voice = now
-                else:
-                    if now - last_voice >= 0.5: # short debounce before declaring silence
-                        state = "WAITING_FOR_SILENCE"
-                        
-            elif state == "WAITING_FOR_SILENCE":
-                if is_voice:
-                    print(f"[info] [record] Voice detected again (RMS={rms_val:.0f})", flush=True)
-                    last_voice = now
-                    # We reset prompt_count when user speaks again
-                    prompt_count = 0
-                    state = "VOICE_DETECTED"
-                else:
-                    silence = now - last_voice
-                    if silence >= FIRST_SILENCE_S:
-                        if prompt_count == 0:
-                            state = "PROMPT_1"
-                        elif prompt_count == 1:
-                            state = "PROMPT_2"
-                        elif prompt_count == 2:
-                            state = "PROMPT_3"
-                        else:
-                            print(f"[info] [record] Max prompts reached ({prompt_count}). Stopping recording.", flush=True)
-                            state = "STOP_RECORDING"
-                            
-            elif state in ("PROMPT_1", "PROMPT_2", "PROMPT_3"):
-                prompt_count += 1
-                print(f"[info] [record] Detected silence for {FIRST_SILENCE_S}s (Prompt #{prompt_count}/3). Asking to continue...", flush=True)
-                
-                # TTS Playback
-                speak("Still listening?")
-
-                
-                # Mute/cooldown window (1.5 seconds) to avoid feedback
-                mute_until = time.time() + 1.5
-                last_voice = time.time() # Reset voice timestamp to resume/give 3 more seconds
-                
-                state = "WAITING_FOR_SILENCE"
-                
     if stop_detector is not None:
         try:
             stop_detector.close()
