@@ -54,8 +54,8 @@ PIPER_MODEL        = "/app/models/piper/en_US-lessac-medium.onnx"
 WHISPER_MODEL_DIR  = "/app/models/faster-whisper"
 EIM_PATH           = os.environ.get("EIM_PATH", "models/new-marvin.eim")
 STOP_KEYWORD       = os.environ.get("STOP_KEYWORD", "im_done")
-STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.85"))
-STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "2"))
+STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.90"))
+STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "3"))
 MIC_RATE           = 48000
 PYAUDIO_DEV      = 1  # CS202 mic
 WAKE_THRESHOLD     = 0.55
@@ -544,8 +544,8 @@ def record_thought(device):
                     best_label, score, latency = stop_detector.classify(stop_buf.tolist())
                     print(f"[info] [inference] Latency: {latency:.2f}ms | Detected: '{best_label}' | Confidence: {score:.4f}", flush=True)
                     
-                    # Grace period: Ignore first 1.5 seconds to avoid transient start-up false-positives
-                    if now - start > 1.5:
+                    # Grace period: Ignore first 2.5 seconds to avoid transient chime/echo false-positives
+                    if now - start > 2.5:
                         if best_label == STOP_KEYWORD and score >= STOP_THRESHOLD:
                             stop_consec_count += 1
                             print(f"[info] [inference] Stop keyword '{best_label}' detected consecutively: {stop_consec_count}/{STOP_CONSEC} (score={score:.4f})", flush=True)
