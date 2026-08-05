@@ -519,6 +519,7 @@ def record_thought(device):
     prompt_count = 0
     last_voice = None
     mute_until = 0.0
+    stop_consec_count = 0
     
     last_log_time = 0.0
     
@@ -571,10 +572,16 @@ def record_thought(device):
                     
                     if best_label == STOP_KEYWORD and score >= STOP_THRESHOLD:
                         if state in ("VOICE_DETECTED", "WAITING_FOR_SILENCE"):
-                            print(f"[info] [record] Stop keyword '{best_label}' detected with confidence {score:.4f} >= {STOP_THRESHOLD}. Stopping recording.", flush=True)
-                            state = "STOP_RECORDING"
+                            stop_consec_count += 1
+                            print(f"[info] [inference] Stop keyword '{best_label}' detected consecutively: {stop_consec_count}/{STOP_CONSEC} (score={score:.4f})", flush=True)
+                            if stop_consec_count >= STOP_CONSEC:
+                                print(f"[info] [record] Stop keyword '{best_label}' triggered stop recording after {stop_consec_count} consecutive detections.", flush=True)
+                                state = "STOP_RECORDING"
                         else:
+                            stop_consec_count = 0
                             print(f"[info] [record] Stop keyword '{best_label}' detected (score={score:.4f}) but ignored because state is '{state}' (voice not yet detected).", flush=True)
+                    else:
+                        stop_consec_count = 0
 
                 except Exception as ex:
                     print(f"[warn] [inference] Inference step failed: {ex}", flush=True)
