@@ -58,8 +58,8 @@ STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.90"))
 STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "3"))
 MIC_RATE           = 48000
 PYAUDIO_DEV      = 1  # CS202 mic
-WAKE_THRESHOLD     = 0.55
-WAKE_CONSEC        = 2
+WAKE_THRESHOLD     = 0.85
+WAKE_CONSEC        = 3
 WAKE_COOLDOWN      = 3.0
 STOP_PHRASES       = ["i'm done","im done","that's all","thats all","that is all"]
 
