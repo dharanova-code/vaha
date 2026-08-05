@@ -393,7 +393,16 @@ def self_check():
         if not found:
             print(f"[error] [check] Wake model missing at {EIM_PATH}", flush=True)
             sys.exit(1)
+    
+    # Make model file executable (required by Edge Impulse Linux runner)
+    try:
+        os.chmod(EIM_PATH, 0o755)
+        print(f"[info] [check] Model file permissions set to executable: {EIM_PATH}", flush=True)
+    except Exception as e:
+        print(f"[warn] [check] Could not make model file executable: {e}", flush=True)
+
     print(f"[info] [check] Wake model verified: {EIM_PATH}", flush=True)
+
 
     
     # 2. Validate Piper voice model
