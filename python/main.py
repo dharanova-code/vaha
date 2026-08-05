@@ -591,7 +591,7 @@ def record_thought(device):
             
             # Voice detection logic (with feedback muting check)
             if now >= mute_until:
-                is_voice = rms_val > RMS_THRESHOLD
+                is_voice = audio.is_speech(chunk)
                     
             # FSM Transitions
             if state == "LISTENING":
