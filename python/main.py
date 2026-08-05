@@ -53,7 +53,7 @@ PIPER_EXE          = "/app/piper/piper"
 PIPER_MODEL        = "/app/models/piper/en_US-lessac-medium.onnx"
 WHISPER_MODEL_DIR  = "/app/models/faster-whisper"
 EIM_PATH           = os.environ.get("EIM_PATH", "models/new-marvin.eim")
-STOP_KEYWORD       = os.environ.get("STOP_KEYWORD", "done")
+STOP_KEYWORD       = os.environ.get("STOP_KEYWORD", "im_done")
 STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.60"))
 MIC_RATE           = 48000
 PYAUDIO_DEV      = 1  # CS202 mic
@@ -561,8 +561,12 @@ def record_thought(device):
                     print(f"[info] [inference] Latency: {latency:.2f}ms | Detected: '{best_label}' | Confidence: {score:.4f}", flush=True)
                     
                     if best_label == STOP_KEYWORD and score >= STOP_THRESHOLD:
-                        print(f"[info] [record] Stop keyword '{best_label}' detected with confidence {score:.4f} >= {STOP_THRESHOLD}. Stopping recording.", flush=True)
-                        state = "STOP_RECORDING"
+                        if state in ("VOICE_DETECTED", "WAITING_FOR_SILENCE"):
+                            print(f"[info] [record] Stop keyword '{best_label}' detected with confidence {score:.4f} >= {STOP_THRESHOLD}. Stopping recording.", flush=True)
+                            state = "STOP_RECORDING"
+                        else:
+                            print(f"[info] [record] Stop keyword '{best_label}' detected (score={score:.4f}) but ignored because state is '{state}' (voice not yet detected).", flush=True)
+
                 except Exception as ex:
                     print(f"[warn] [inference] Inference step failed: {ex}", flush=True)
             
