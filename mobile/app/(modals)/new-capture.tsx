@@ -181,7 +181,7 @@ export default function NewCaptureModal() {
                 <Text variant="mono-bold" style={styles.timer}>{timerText}</Text>
                 <Text variant="meta-sm" style={styles.recordingLabel}>Listening to your voice...</Text>
               </View>
-              <Button variant="danger" onPress={handleStopRecording} style={styles.recordingBtn}>
+              <Button variant="danger" onPress={handleStopRecording} style={[styles.recordingBtn, { backgroundColor: theme.colors.semantic.error }]}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <Feather name="square" size={16} color="#FFF" style={{ marginRight: 8 }} />
                   <Text style={{ color: "#FFF", fontWeight: "700" }}>Stop Recording</Text>
