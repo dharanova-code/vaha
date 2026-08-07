@@ -21,6 +21,19 @@ import type { CaptureWithTags } from "../../../src/features/devices/stores/captu
 export default function CapturesScreen() {
   const insets = useSafeAreaInsets();
   const bottomOffset = insets.bottom > 0 ? insets.bottom : 16;
+
+  const [scrollProgress, setScrollProgress] = React.useState(0);
+  const [contentHeight, setContentHeight] = React.useState(1);
+  const [layoutHeight, setLayoutHeight] = React.useState(1);
+
+  const handleScroll = useCallback((event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const maxScroll = contentHeight - layoutHeight;
+    if (maxScroll > 0) {
+      setScrollProgress(Math.min(Math.max(offsetY / maxScroll, 0), 1));
+    }
+  }, [contentHeight, layoutHeight]);
+
   const {
     captures,
     totalCount,
@@ -160,21 +173,42 @@ export default function CapturesScreen() {
 
       {/* Uncluttered Spacious Capture List */}
       {!isLoading && !isEmpty && (
-        <FlatList<CaptureWithTags>
-          data={captures}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isSyncing}
-              onRefresh={onRefresh}
-              tintColor={theme.colors.accent.primary}
-            />
-          }
-          ListFooterComponent={<View style={styles.footer} />}
-        />
+        <View style={{ flex: 1, flexDirection: "row" }}>
+          <FlatList<CaptureWithTags>
+            data={captures}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            onContentSizeChange={(_, height) => setContentHeight(height)}
+            onLayout={(event) => setLayoutHeight(event.nativeEvent.layout.height)}
+            scrollEventThrottle={16}
+            refreshControl={
+              <RefreshControl
+                refreshing={isSyncing}
+                onRefresh={onRefresh}
+                tintColor={theme.colors.accent.primary}
+              />
+            }
+            ListFooterComponent={<View style={styles.footer} />}
+            style={{ flex: 1 }}
+          />
+
+          {/* Custom Scroll Progress Sidebar Indicator */}
+          {contentHeight > layoutHeight && (
+            <View style={styles.scrollTrack}>
+              <View
+                style={[
+                  styles.scrollIndicator,
+                  {
+                    top: scrollProgress * (layoutHeight - 80),
+                  },
+                ]}
+              />
+            </View>
+          )}
+        </View>
       )}
 
       {/* Floating Record Action Button */}
@@ -300,5 +334,22 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontWeight: "700",
     fontSize: 16,
+  },
+  scrollTrack: {
+    position: "absolute",
+    right: 4,
+    top: 10,
+    bottom: 90, // End above floating FAB
+    width: 2,
+    backgroundColor: `${theme.colors.accent.border}60`,
+    borderRadius: 1,
+  },
+  scrollIndicator: {
+    position: "absolute",
+    width: 6,
+    height: 40,
+    backgroundColor: theme.colors.accent.primary,
+    borderRadius: 3,
+    left: -2, // Center on 2px track
   },
 });
