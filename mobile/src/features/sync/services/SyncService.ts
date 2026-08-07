@@ -68,6 +68,11 @@ export class SyncService {
     const captureRepo = Container.getInstance().resolve<CaptureRepository>("CaptureRepository");
     const syncRepo = Container.getInstance().resolve<SyncRepository>("SyncRepository");
 
+    // Build a map from local DB id → DeviceCaptureMetadata so processQueue
+    // never needs to re-fetch the list from the device (which would fail if a
+    // capture was already deleted after a prior successful download).
+    const metadataByLocalId = new Map<number, DeviceCaptureMetadata>();
+
     for (const metadata of captures) {
       // 1. Check if we already have this capture locally
       const existing = await captureRepo.findByUuid(metadata.transaction_id);
@@ -97,7 +102,10 @@ export class SyncService {
         localCaptureId = insertResult.getValueOrThrow().id;
       }
 
-      // 3. Enqueue it in the sync queue
+      // 3. Cache the full device metadata so the queue processor has it
+      metadataByLocalId.set(localCaptureId, metadata);
+
+      // 4. Enqueue it in the sync queue
       await syncRepo.enqueue({
         entity: "capture_download",
         entityId: localCaptureId,
@@ -106,8 +114,8 @@ export class SyncService {
       });
     }
 
-    // 4. Kick off queue processing
-    this.processQueue(transport).catch(e => {
+    // 5. Kick off queue processing with cached metadata (no device re-fetch needed)
+    this.processQueue(transport, metadataByLocalId).catch(e => {
        this.logger.error("[SYNC] Unhandled error during queue processing", e);
     });
 
@@ -117,7 +125,10 @@ export class SyncService {
   /**
    * Processes the local sync queue until empty.
    */
-  async processQueue(transport: DeviceTransport): Promise<void> {
+  async processQueue(
+    transport: DeviceTransport,
+    metadataByLocalId: Map<number, DeviceCaptureMetadata> = new Map(),
+  ): Promise<void> {
     if (this.isProcessingQueue) {
       this.logger.debug("[SYNC] Queue is already processing.");
       return;
@@ -141,34 +152,52 @@ export class SyncService {
           const capResult = await captureRepo.findById(item.entityId);
           if (capResult.isSuccess && capResult.getValueOrThrow()) {
             const capture = capResult.getValueOrThrow()!;
-            
-            // We need metadata for MD5 verification, size, etc.
-            // But we don't have it saved in the DB (only UUID and transcript).
-            // Let's fetch the single capture metadata from the device or just download it without MD5 check if we don't have it?
-            // Wait, we can fetch metadata list again, or fetch a specific one? 
-            // The device `/captures` endpoint returns the list.
-            const listResult = await transport.get<DeviceCaptureMetadata[]>("/captures");
-            let metadata: DeviceCaptureMetadata | undefined;
-            if (listResult.isSuccess) {
-                metadata = listResult.getValueOrThrow().find(m => m.transaction_id === capture.uuid);
-            }
+
+            // Use the metadata we already fetched during discovery.
+            // This avoids re-fetching the /captures list from the device —
+            // which would fail if the capture was already deleted after a
+            // prior successful download, causing spurious "failed" marks.
+            const metadata = metadataByLocalId.get(item.entityId);
 
             if (!metadata) {
-                this.logger.warn(`[SYNC] Capture ${capture.uuid} no longer exists on device.`);
+              // Queue item was enqueued outside of this sync session (e.g.
+              // from a previous app session). Fall back to a targeted device
+              // list fetch so we can still attempt the download.
+              this.logger.debug(`[SYNC] No cached metadata for ${capture.uuid}, fetching from device...`);
+              const listResult = await transport.get<DeviceCaptureMetadata[]>("/captures");
+              const fallbackMeta = listResult.isSuccess
+                ? listResult.getValueOrThrow().find(m => m.transaction_id === capture.uuid)
+                : undefined;
+
+              if (!fallbackMeta) {
+                // Capture genuinely no longer exists on device — skip gracefully.
+                this.logger.warn(`[SYNC] Capture ${capture.uuid} not found on device, skipping.`);
+                await captureRepo.update(capture.id, { syncState: "failed" });
                 await syncRepo.markFailed(item.id);
                 failed++;
-            } else {
-                const transferResult = await this._transferWithRetry(transport, metadata);
-                
+              } else {
+                const transferResult = await this._transferWithRetry(transport, fallbackMeta);
                 if (transferResult.isSuccess) {
-                    await captureRepo.update(capture.id, { syncState: "synced" });
-                    await syncRepo.markCompleted(item.id);
-                    transferred++;
+                  await captureRepo.update(capture.id, { syncState: "synced" });
+                  await syncRepo.markCompleted(item.id);
+                  transferred++;
                 } else {
-                    await captureRepo.update(capture.id, { syncState: "failed" });
-                    await syncRepo.markFailed(item.id);
-                    failed++;
+                  await captureRepo.update(capture.id, { syncState: "failed" });
+                  await syncRepo.markFailed(item.id);
+                  failed++;
                 }
+              }
+            } else {
+              const transferResult = await this._transferWithRetry(transport, metadata);
+              if (transferResult.isSuccess) {
+                await captureRepo.update(capture.id, { syncState: "synced" });
+                await syncRepo.markCompleted(item.id);
+                transferred++;
+              } else {
+                await captureRepo.update(capture.id, { syncState: "failed" });
+                await syncRepo.markFailed(item.id);
+                failed++;
+              }
             }
           } else {
             await syncRepo.markFailed(item.id);
