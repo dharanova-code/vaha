@@ -52,15 +52,16 @@ NOTES_FILE         = "/app/notes.txt"
 PIPER_EXE          = "/app/piper/piper"
 PIPER_MODEL        = "/app/models/piper/en_US-lessac-medium.onnx"
 WHISPER_MODEL_DIR  = "/app/models/faster-whisper"
+WHISPER_MODEL_NAME = os.environ.get("WHISPER_MODEL_NAME", "base.en")
 EIM_PATH           = os.environ.get("EIM_PATH", "models/new-marvin.eim")
 STOP_KEYWORD       = os.environ.get("STOP_KEYWORD", "im_done")
-STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.70"))
-STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "2"))      # detections needed in window
-STOP_WINDOW        = int(os.environ.get("STOP_WINDOW", "4"))       # sliding window size (frames)
+STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.85"))
+STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "3"))      # detections needed in window
+STOP_WINDOW        = int(os.environ.get("STOP_WINDOW", "5"))       # sliding window size (frames)
 MIC_RATE           = 48000
-PYAUDIO_DEV      = 1  # CS202 mic
-WAKE_THRESHOLD     = 0.85
-WAKE_CONSEC        = 3
+PYAUDIO_DEV        = 1  # CS202 mic
+WAKE_THRESHOLD     = float(os.environ.get("WAKE_THRESHOLD", "0.82"))
+WAKE_CONSEC        = int(os.environ.get("WAKE_CONSEC", "2"))
 WAKE_COOLDOWN      = 3.0
 STOP_PHRASES       = ["i'm done","im done","that's all","thats all","that is all"]
 
@@ -191,18 +192,19 @@ def _speak_impl(text):
             try: os.unlink(boosted)
             except: pass
 
-# ─── NOISE ────────────────────────────────────────────────────────────────────
-def clean_audio(audio, sr=MODEL_RATE):
+# ─── NOISE & AUDIO PREPARATION ────────────────────────────────────────────────
+def clean_audio(audio):
     if audio.size < 512: return audio
+    # Sub-millisecond peak normalization and DC offset removal for CPU efficiency
     was_int16 = audio.dtype == np.int16
-    f = audio.astype(np.float32) / (32768. if was_int16 else 1.)
-    n_fft = 512 if audio.size < 4096 else 1024
-    y_noise = f[:sr//2] if len(f) >= sr else None
-    r = nr.reduce_noise(y=f, sr=sr, y_noise=y_noise, stationary=True,
-                        n_fft=n_fft, prop_decrease=0.75)
+    f = audio.astype(np.float32)
+    f = f - np.mean(f)
+    max_val = np.max(np.abs(f))
+    if max_val > 0:
+        f = f / max_val
     if was_int16:
-        return np.clip(r*32768,-32768,32767).astype(np.int16)
-    return r
+        return (f * 32767).astype(np.int16)
+    return f
 
 # ─── WHISPER ──────────────────────────────────────────────────────────────────
 _whisper = None
@@ -210,10 +212,11 @@ def get_whisper():
     global _whisper
     if _whisper is None:
         from faster_whisper import WhisperModel
-        print(f"{_ts()}[transcribe] Loading faster-whisper small...", flush=True)
-        _whisper = WhisperModel("small", device="cpu", compute_type="int8",
+        model_name = WHISPER_MODEL_NAME
+        print(f"{_ts()}[transcribe] Loading faster-whisper {model_name}...", flush=True)
+        _whisper = WhisperModel(model_name, device="cpu", compute_type="int8",
                                 download_root=WHISPER_MODEL_DIR)
-        print(f"{_ts()}[transcribe] Whisper ready", flush=True)
+        print(f"{_ts()}[transcribe] Whisper ready ({model_name})", flush=True)
     return _whisper
 
 FILLERS = ["um","uh","uhh","umm","hmm"]
@@ -514,8 +517,6 @@ def record_thought(device):
     
     print(f"[info] [record] Listening... Max duration: {MAX_RECORD_S}s", flush=True)
     
-    # Sliding window for stop keyword detection.
-    # A deque of the last STOP_WINDOW scores (0.0 if not keyword, else score).
     from collections import deque as _deque
     stop_window: _deque = _deque(maxlen=STOP_WINDOW)
     
@@ -534,6 +535,9 @@ def record_thought(device):
             # Run Edge Impulse classification if available
             if stop_detector is not None and stop_buf is not None:
                 try:
+                    ac = chunk.astype(np.float64) - np.mean(chunk)
+                    rms = float(np.sqrt(np.mean(ac**2)))
+
                     chunk_f32 = chunk.astype(np.float32)
                     resample_len = int(len(chunk_f32) * MODEL_RATE / SAMPLE_RATE)
                     resampled_chunk = np.interp(
@@ -545,20 +549,19 @@ def record_thought(device):
                     stop_buf = np.roll(stop_buf, -resample_len)
                     stop_buf[-resample_len:] = resampled_chunk
                     
-                    best_label, score, latency = stop_detector.classify(stop_buf.tolist())
-                    print(f"[info] [inference] Latency: {latency:.2f}ms | Detected: '{best_label}' | Confidence: {score:.4f}", flush=True)
-                    
-                    # Grace period: Ignore first 2.5 seconds to avoid transient chime/echo false-positives
-                    if now - start > 2.5:
-                        # Sliding window: push score if keyword matched, else 0
+                    # Grace period: Ignore first 3.5s and require speech above RMS gate
+                    if now - start > 3.5 and rms >= RMS_THRESHOLD:
+                        best_label, score, latency = stop_detector.classify(stop_buf.tolist())
+                        
                         slot = score if (best_label == STOP_KEYWORD and score >= STOP_THRESHOLD) else 0.0
                         stop_window.append(slot)
                         
                         hits = sum(1 for s in stop_window if s > 0)
                         if hits >= STOP_CONSEC:
                             best_score = max(s for s in stop_window if s > 0)
-                            print(f"[info] [inference] Stop keyword '{STOP_KEYWORD}' detected: {hits}/{STOP_WINDOW} frames (best score={best_score:.4f})", flush=True)
+                            print(f"[info] [inference] Stop keyword '{STOP_KEYWORD}' confirmed: {hits}/{STOP_WINDOW} frames (score={best_score:.4f})", flush=True)
                             print(f"[info] [record] Stop keyword triggered stop recording.", flush=True)
+                            play_chime("stop")
                             break
                     else:
                         stop_window.clear()
@@ -575,18 +578,36 @@ def record_thought(device):
     return np.concatenate(collected) if collected else np.array([],dtype=np.int16)
 
 
-# ─── CHIME ────────────────────────────────────────────────────────────────────
-def play_chime():
+# ─── CHIME SUITE ──────────────────────────────────────────────────────────────
+def play_chime(kind="wake"):
+    """
+    Synthesizes and plays audio feedback cues:
+    - 'wake': double rising tone (880Hz -> 1320Hz)
+    - 'stop': double falling tone (1200Hz -> 750Hz)
+    - 'success': tri-tone C-E-G chord (523Hz -> 659Hz -> 784Hz)
+    """
     rate = 22050
     def tone(freq, dur):
-        t = np.linspace(0,dur,int(rate*dur),endpoint=False)
-        return 0.4*np.minimum(1,10*(dur-t)/dur)*np.sin(2*np.pi*freq*t)
-    audio = np.concatenate([tone(880,0.12),tone(1320,0.15)]).astype(np.float32)
-    i16 = (audio*32767).astype(np.int16)
-    proc = subprocess.Popen(["aplay","-D","plughw:Device,0",
-                              "-r",str(rate),"-f","S16_LE","-c","1","-q"],
-                             stdin=subprocess.PIPE)
-    proc.stdin.write(i16.tobytes()); proc.stdin.close(); proc.wait()
+        t = np.linspace(0, dur, int(rate * dur), endpoint=False)
+        return 0.35 * np.minimum(1, 10 * (dur - t) / dur) * np.sin(2 * np.pi * freq * t)
+    
+    if kind == "stop":
+        audio_wave = np.concatenate([tone(1200, 0.10), tone(750, 0.12)]).astype(np.float32)
+    elif kind == "success":
+        audio_wave = np.concatenate([tone(523, 0.08), tone(659, 0.08), tone(784, 0.15)]).astype(np.float32)
+    else:  # "wake"
+        audio_wave = np.concatenate([tone(880, 0.10), tone(1320, 0.12)]).astype(np.float32)
+
+    i16 = (audio_wave * 32767).astype(np.int16)
+    try:
+        proc = subprocess.Popen(["aplay", "-D", "plughw:Device,0",
+                                  "-r", str(rate), "-f", "S16_LE", "-c", "1", "-q"],
+                                 stdin=subprocess.PIPE)
+        proc.stdin.write(i16.tobytes())
+        proc.stdin.close()
+        proc.wait()
+    except Exception as e:
+        print(f"[warn] [chime] Play chime '{kind}' failed: {e}", flush=True)
 
 # ─── WAKE WORD ────────────────────────────────────────────────────────────────
 def listen_for_wake_word():
@@ -596,24 +617,46 @@ def listen_for_wake_word():
     slice_sz = info['model_parameters']['slice_size']
     chunk_mic = int(slice_sz * MIC_RATE / MODEL_RATE)
     p = pyaudio.PyAudio()
-    stream = p.open(format=pyaudio.paInt16,channels=1,rate=MIC_RATE,input=True,
-                    input_device_index=PYAUDIO_DEV,frames_per_buffer=chunk_mic)
-    buf = np.zeros(n_feat,dtype=np.float32)
-    consec, last_trigger = 0, 0.
-    print(f"{_ts()}[wake] Listening... (threshold={WAKE_THRESHOLD})", flush=True)
+    stream = p.open(format=pyaudio.paInt16, channels=1, rate=MIC_RATE, input=True,
+                    input_device_index=PYAUDIO_DEV, frames_per_buffer=chunk_mic)
+    
+    # Drain initial mic frames to clear lingering speaker output echo
+    for _ in range(4):
+        try: stream.read(chunk_mic, exception_on_overflow=False)
+        except: pass
+
+    buf = np.zeros(n_feat, dtype=np.float32)
+    consec = 0
+    print(f"{_ts()}[wake] Listening... (threshold={WAKE_THRESHOLD}, rms_gate={RMS_THRESHOLD})", flush=True)
     try:
         while True:
-            raw = stream.read(chunk_mic,exception_on_overflow=False)
-            chunk = np.frombuffer(raw,dtype=np.int16).astype(np.float32)
-            resampled = np.interp(np.linspace(0,len(chunk)-1,slice_sz),
-                                  np.arange(len(chunk)),chunk).astype(np.float32)
-            buf = np.roll(buf,-slice_sz); buf[-slice_sz:] = resampled
-            score = runner.classify(buf.tolist())['result']['classification'].get('marvin',0.)
+            raw = stream.read(chunk_mic, exception_on_overflow=False)
+            chunk_i16 = np.frombuffer(raw, dtype=np.int16)
 
-            consec = consec+1 if score>=WAKE_THRESHOLD else 0
-            now = time.time()
-            if consec>=WAKE_CONSEC and now-last_trigger>WAKE_COOLDOWN:
-                print(f"{_ts()}[wake] Triggered!", flush=True)
+            # RMS energy gate — require audible mic signal
+            ac = chunk_i16.astype(np.float64) - np.mean(chunk_i16)
+            rms = float(np.sqrt(np.mean(ac**2)))
+
+            chunk = chunk_i16.astype(np.float32)
+            resampled = np.interp(np.linspace(0, len(chunk)-1, slice_sz),
+                                  np.arange(len(chunk)), chunk).astype(np.float32)
+            buf = np.roll(buf, -slice_sz)
+            buf[-slice_sz:] = resampled
+
+            if rms < RMS_THRESHOLD:
+                # Mic level below threshold (ambient silence / low hum)
+                consec = 0
+                continue
+
+            score = runner.classify(buf.tolist())['result']['classification'].get('marvin', 0.)
+            if score >= WAKE_THRESHOLD:
+                consec += 1
+                print(f"[wake] Potential wake frame: score={score:.4f} (consec={consec}/{WAKE_CONSEC}, rms={rms:.1f})", flush=True)
+            else:
+                consec = 0
+
+            if consec >= WAKE_CONSEC:
+                print(f"{_ts()}[wake] Wake word 'Marvin' confirmed! (score={score:.4f})", flush=True)
                 stream.stop_stream(); stream.close(); p.terminate(); runner.stop()
                 return True
     except KeyboardInterrupt:
@@ -636,8 +679,8 @@ def vaha_loop():
             
             print("[info] [main] Wake word detected. Transitioning to recording stage...", flush=True)
             broadcast_event("capture_started")
-            play_chime()
-            time.sleep(2.0)
+            play_chime("wake")
+            time.sleep(0.3)
             broadcast_event("recording")
             
             t_rec_start = time.time()
@@ -699,6 +742,7 @@ def vaha_loop():
                     channels=1
                 )
                 print("[info] [main] Capture saved locally successfully.", flush=True)
+                play_chime("success")
             except Exception as e:
                 print(f"[info] [main] Capture save error: {e}", flush=True)
             t_save_end = time.time()

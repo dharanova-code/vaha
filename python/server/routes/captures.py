@@ -38,19 +38,19 @@ def _get_whisper():
     if _whisper_model is None:
         with _whisper_lock:
             if _whisper_model is None:
-                from faster_whisper import WhisperModel
+                model_name = os.environ.get("WHISPER_MODEL_NAME", "base.en")
                 whisper_dir = os.environ.get(
                     "WHISPER_MODEL_DIR",
                     "/app/models/faster-whisper",
                 )
-                print("[captures] Loading faster-whisper for transcription endpoint...", flush=True)
+                print(f"[captures] Loading faster-whisper ({model_name}) for transcription endpoint...", flush=True)
                 _whisper_model = WhisperModel(
-                    "small",
+                    model_name,
                     device="cpu",
                     compute_type="int8",
                     download_root=whisper_dir,
                 )
-                print("[captures] faster-whisper ready.", flush=True)
+                print(f"[captures] faster-whisper ready ({model_name}).", flush=True)
     return _whisper_model
 
 
