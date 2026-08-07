@@ -9,6 +9,8 @@ export interface SettingsState {
   retentionDays: number;
   userName: string;
   userEmail: string;
+  userBio: string;
+  userAvatarUri: string;
   groqApiKey: string;
   
   setServerIp: (ip: string) => void;
@@ -16,6 +18,8 @@ export interface SettingsState {
   setRetentionDays: (days: number) => void;
   setUserName: (name: string) => void;
   setUserEmail: (email: string) => void;
+  setUserBio: (bio: string) => void;
+  setUserAvatarUri: (uri: string) => void;
   setGroqApiKey: (key: string) => void;
   loadSettings: () => Promise<void>;
 }
@@ -26,6 +30,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   retentionDays: 30, // Default 30 days retention
   userName: "",
   userEmail: "",
+  userBio: "",
+  userAvatarUri: "",
   groqApiKey: "",
 
   loadSettings: async () => {
@@ -36,6 +42,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       const retRes = await repo.get("retentionDays");
       const nameRes = await repo.get("userName");
       const emailRes = await repo.get("userEmail");
+      const bioRes = await repo.get("userBio");
+      const avatarRes = await repo.get("userAvatarUri");
       const keyRes = await repo.get("groqApiKey");
       
       const ip = ipRes.isSuccess ? ipRes.getValueOrThrow()?.value : undefined;
@@ -43,6 +51,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       const retention = retRes.isSuccess ? retRes.getValueOrThrow()?.value : undefined;
       const name = nameRes.isSuccess ? nameRes.getValueOrThrow()?.value : undefined;
       const email = emailRes.isSuccess ? emailRes.getValueOrThrow()?.value : undefined;
+      const bio = bioRes.isSuccess ? bioRes.getValueOrThrow()?.value : undefined;
+      const avatar = avatarRes.isSuccess ? avatarRes.getValueOrThrow()?.value : undefined;
       const key = keyRes.isSuccess ? keyRes.getValueOrThrow()?.value : undefined;
       
       set({ 
@@ -51,6 +61,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         retentionDays: retention ? parseInt(retention, 10) : 30,
         userName: name ?? "",
         userEmail: email ?? "",
+        userBio: bio ?? "",
+        userAvatarUri: avatar ?? "",
         groqApiKey: key ?? "",
       });
     } catch (e) {
@@ -101,6 +113,24 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       await repo.set("userEmail", userEmail);
     } catch (e) {
       console.warn("Failed to persist userEmail", e);
+    }
+  },
+  setUserBio: async (userBio: string) => {
+    set({ userBio });
+    try {
+      const repo = Container.getInstance().resolve<SettingsRepository>("SettingsRepository");
+      await repo.set("userBio", userBio);
+    } catch (e) {
+      console.warn("Failed to persist userBio", e);
+    }
+  },
+  setUserAvatarUri: async (userAvatarUri: string) => {
+    set({ userAvatarUri });
+    try {
+      const repo = Container.getInstance().resolve<SettingsRepository>("SettingsRepository");
+      await repo.set("userAvatarUri", userAvatarUri);
+    } catch (e) {
+      console.warn("Failed to persist userAvatarUri", e);
     }
   },
   setGroqApiKey: async (groqApiKey: string) => {
