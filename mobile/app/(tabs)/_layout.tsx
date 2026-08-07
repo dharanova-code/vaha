@@ -46,14 +46,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="captures/index"
         options={{
-          title: "Library",
+          title: "My Notes",
           tabBarIcon: ({ color, size }) => <Feather name="mic" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="device"
         options={{
-          title: "Device",
+          title: "My Device",
           tabBarIcon: ({ color, size }) => <Feather name="cpu" color={color} size={size} />,
         }}
       />

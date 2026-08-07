@@ -63,7 +63,7 @@ export default function CapturesScreen() {
 
   return (
     <Screen withMarginThread style={styles.container}>
-      <SectionHeader title={`Library${totalCount > 0 ? ` (${totalCount})` : ""}`} />
+      <SectionHeader title={`My Notes${totalCount > 0 ? ` (${totalCount})` : ""}`} />
 
       {/* Search + Sort toolbar */}
       <View style={styles.toolbar}>
@@ -72,8 +72,8 @@ export default function CapturesScreen() {
             value={query}
             onChangeText={setQuery}
             onClear={onClearSearch}
-            placeholder="Search title, transcript, tags..."
-            accessibilityLabel="Search captures"
+            placeholder="Search notes, text..."
+            accessibilityLabel="Search notes"
           />
         </View>
         <Button
@@ -93,18 +93,27 @@ export default function CapturesScreen() {
       {/* Filters Row */}
       <View style={styles.filtersWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContent}>
-          {(["all", "mobile", "uno_q", "synced", "unsynced"] as FilterType[]).map((f) => (
-            <Button
-              key={f}
-              variant={filter === f ? "primary" : "ghost"}
-              onPress={() => setFilter(f)}
-              style={styles.filterChip}
-            >
-              <Text variant="mono-bold" color={filter === f ? "#FFF" : theme.colors.text.muted}>
-                {f.toUpperCase().replace("_", " ")}
-              </Text>
-            </Button>
-          ))}
+          {(["all", "mobile", "uno_q", "synced", "unsynced"] as FilterType[]).map((f) => {
+            const labelMap: Record<string, string> = {
+              all: "ALL",
+              mobile: "PHONE",
+              uno_q: "VAHA BOX",
+              synced: "SAVED",
+              unsynced: "PENDING",
+            };
+            return (
+              <Button
+                key={f}
+                variant={filter === f ? "primary" : "ghost"}
+                onPress={() => setFilter(f)}
+                style={styles.filterChip}
+              >
+                <Text variant="mono-bold" color={filter === f ? "#FFF" : theme.colors.text.muted}>
+                  {labelMap[f] ?? f.toUpperCase()}
+                </Text>
+              </Button>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -115,8 +124,8 @@ export default function CapturesScreen() {
       {!isLoading && isEmpty && (
         <EmptyState
           variant="captures"
-          title="No captures yet"
-          message="Connect to your device or create a manual capture to get started."
+          title="No voice notes yet"
+          message="Speak to your Vaha device or tap Record Note to add your first note."
         />
       )}
 
@@ -124,8 +133,8 @@ export default function CapturesScreen() {
       {!isLoading && isEmptySearch && (
         <EmptyState
           variant="search"
-          title="No results"
-          message={`Nothing matched "${query}". Try a different search term.`}
+          title="No results found"
+          message={`Nothing matched "${query}". Try searching for something else.`}
         />
       )}
 
@@ -152,9 +161,9 @@ export default function CapturesScreen() {
         <Button
           variant="primary"
           onPress={() => router.push("/(modals)/new-capture" as any)}
-          accessibilityLabel="Create manual capture"
+          accessibilityLabel="Record new note"
         >
-          New Capture
+          Record Note
         </Button>
       </View>
     </Screen>

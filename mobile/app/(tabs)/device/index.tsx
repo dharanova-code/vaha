@@ -29,9 +29,9 @@ import { DiscoveredBleDevice } from "../../../src/features/devices/services/BleP
 type PanelMode = "wifi" | "ble" | "provision";
 
 const WIFI_SUGGESTIONS = [
-  { ip: "192.168.1.100", hint: "Router subnet A" },
-  { ip: "192.168.0.100", hint: "Router subnet B" },
-  { ip: "192.168.4.1",   hint: "AP mode default" },
+  { ip: "192.168.1.100", hint: "Home Network 1" },
+  { ip: "192.168.0.100", hint: "Home Network 2" },
+  { ip: "192.168.4.1",   hint: "Direct Hotspot" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -176,8 +176,8 @@ export default function DeviceScreen() {
     (liveSensors?.voc_parts_per_billion ?? 0) > 1000 ? "warning" as const : "normal" as const;
 
   const syncLabel = isSyncing
-    ? `Syncing (${Math.round(syncProgress)}%)`
-    : "Sync Captures";
+    ? `Downloading (${Math.round(syncProgress)}%)`
+    : "Download Notes from Device";
 
   const provisionStatusLabel: Record<string, string> = {
     connecting:          "Connecting to device…",
@@ -186,7 +186,7 @@ export default function DeviceScreen() {
     waiting_for_wifi:    "Waiting for Wi-Fi…",
     discovering_device:  "Locating on network…",
     verifying_health:    "Verifying connection…",
-    syncing:             "Syncing captures…",
+    syncing:             "Downloading notes…",
     success:             "All done!",
     error:               "Something went wrong",
   };
@@ -197,7 +197,7 @@ export default function DeviceScreen() {
       {/* ── Page Header ─────────────────────────────────── */}
       <View style={styles.pageHeader}>
         <View>
-          <Text variant="headline-lg" style={styles.pageTitle}>UNO Q Device</Text>
+          <Text variant="headline-lg" style={styles.pageTitle}>Vaha Device</Text>
           <View style={styles.statusRow}>
             {statusDot(connectionStatus)}
             <Text variant="meta-sm" style={{ color: statusColor(connectionStatus) }}>
@@ -227,7 +227,7 @@ export default function DeviceScreen() {
       {isConnected && deviceStatus && (
         <>
           <DeviceCard
-            name="Arduino Uno Q"
+            name="Vaha Smart Box"
             status="connected"
             batteryLevel={deviceStatus.battery_percentage ?? 100}
           />
@@ -244,7 +244,7 @@ export default function DeviceScreen() {
               <Text variant="mono-bold" style={styles.metaValue}>{uptimeLabel}</Text>
             </View>
             <View style={styles.metaChip}>
-              <Text variant="label-sm" style={styles.metaLabel}>BUFFERED</Text>
+              <Text variant="label-sm" style={styles.metaLabel}>UNSAVED</Text>
               <Text variant="mono-bold" style={styles.metaValue}>
                 {deviceStatus.buffered_captures_count ?? 0}
               </Text>
@@ -259,31 +259,31 @@ export default function DeviceScreen() {
           <SectionHeader title="Live Sensors" />
           <View style={styles.sensorGrid}>
             <SensorCard
-              label="TEMP"
+              label="Temperature"
               value={liveSensors?.temperature_celsius?.toFixed(1) ?? "--"}
               unit="°C"
               status="normal"
             />
             <SensorCard
-              label="HUMIDITY"
+              label="Humidity"
               value={liveSensors?.humidity_percentage?.toFixed(0) ?? "--"}
               unit="%"
               status="normal"
             />
             <SensorCard
-              label="TVOC"
+              label="Air Quality"
               value={liveSensors?.voc_parts_per_billion?.toString() ?? "--"}
               unit="ppb"
               status={vocStatus}
             />
             <SensorCard
-              label="FLOW"
+              label="Water Flow"
               value={liveSensors?.flow_rate_liters_per_minute?.toFixed(1) ?? "--"}
               unit="L/m"
               status="normal"
             />
             <SensorCard
-              label="TOTAL WATER"
+              label="Total Water"
               value={liveSensors?.accumulated_volume_liters?.toFixed(2) ?? "--"}
               unit="L"
               status="normal"
