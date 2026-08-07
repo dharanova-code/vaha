@@ -65,34 +65,12 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* 2. Quick Actions */}
-      <SectionHeader title="Quick Actions" />
-      <View style={styles.actionsRow} testID="quick-actions">
-        {quickActions.map(action => (
-          <Button
-            key={action.id}
-            variant="outline"
-            onPress={() => {
-              if (action.id === "new-capture") {
-                router.push("/(modals)/new-capture" as any);
-              } else {
-                router.push(action.route as any);
-              }
-            }}
-            accessibilityLabel={action.accessibilityLabel}
-            style={styles.actionButton}
-          >
-            {action.label}
-          </Button>
-        ))}
-      </View>
-
-      {/* 3. Continue Previous Capture */}
-      <SectionHeader title="Continuing Anchor" />
+      {/* 2. Unfinished Note */}
+      <SectionHeader title="Unfinished Note" />
       <View testID="continuing-anchor">
         <Card variant="outlined" style={styles.anchorCard}>
           <View style={styles.anchorHeader}>
-            <Tag label="unfinished" variant="warning" />
+            <Tag label="draft" variant="warning" />
             <Text variant="mono-bold" style={styles.anchorTime}>
               {continuingAnchor.timestamp}
             </Text>
@@ -106,20 +84,20 @@ export default function HomeScreen() {
         </Card>
       </View>
 
-      {/* 4. Hardware Status */}
-      <SectionHeader title="Hardware Status" />
+      {/* 3. Device Connection */}
+      <SectionHeader title="Device Connection" />
       <View style={styles.statusSection} testID="device-status">
         {isOffline && (
           <EmptyState
             variant="devices"
-            title="Device Offline"
-            message="Connect to your VAHA device over local WiFi to sync captures."
+            title="Device Disconnected"
+            message="Connect your Vaha device to your Wi-Fi network to get your voice notes."
           />
         )}
         {!isOffline && (
           <>
             <DeviceCard
-              name="Arduino Uno Q"
+              name="Vaha Device"
               status={connectionStatus === "connected" ? "connected" : "disconnected"}
               batteryLevel={deviceStatus?.battery_percentage ?? 100}
             />
@@ -133,7 +111,7 @@ export default function HomeScreen() {
               <SensorCard
                 label="TODAY LOGS"
                 value={String(todayCount)}
-                unit="items"
+                unit="notes"
                 status="normal"
               />
             </View>
@@ -141,30 +119,30 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* 5. Daily Insights Preview */}
-      <SectionHeader title="Suggested Reflection" />
+      {/* 4. Daily Inspiration */}
+      <SectionHeader title="Daily Inspiration" />
       <View testID="suggested-reflection">
         <InsightCard
-          quote="Truth is local. A thought exists in context and stillness. Let the ledger accumulate without pressure."
-          sourceTitle="Vaha Reflection Engine"
+          quote="Simple ideas recorded clearly are the start of great things. Speak freely."
+          sourceTitle="Vaha Voice Notes"
           timestamp="Today"
         />
       </View>
 
-      {/* 6. Recent Timeline — live data from SQLite */}
-      <SectionHeader title="Recent Timeline" />
+      {/* 5. Recent Voice Notes */}
+      <SectionHeader title="Recent Voice Notes" />
       <View style={styles.timelineList} testID="recent-timeline">
         {captures.length === 0 ? (
           <EmptyState
             variant="captures"
-            title="No captures yet"
-            message="Voice notes you record on your VAHA device will appear here."
+            title="No voice notes yet"
+            message="Notes you record on your Vaha device will automatically show up here."
           />
         ) : (
           captures.map(capture => (
             <ListItem
               key={capture.id}
-              title={capture.transcript ?? capture.title ?? "Untitled Capture"}
+              title={capture.transcript ?? capture.title ?? "Untitled Note"}
               subtitle={
                 capture.createdAt
                   ? new Date(capture.createdAt).toLocaleString()
@@ -172,7 +150,7 @@ export default function HomeScreen() {
               }
               rightElement={
                 <Tag
-                  label={capture.syncState === "synced" ? "synced" : "pending"}
+                  label={capture.syncState === "synced" ? "saved" : "syncing"}
                   variant={capture.syncState === "synced" ? "success" : "warning"}
                 />
               }
