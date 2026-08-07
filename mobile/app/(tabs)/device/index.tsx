@@ -282,6 +282,12 @@ export default function DeviceScreen() {
               unit="L/m"
               status="normal"
             />
+            <SensorCard
+              label="TOTAL WATER"
+              value={liveSensors?.accumulated_volume_liters?.toFixed(2) ?? "--"}
+              unit="L"
+              status="normal"
+            />
           </View>
         </>
       )}

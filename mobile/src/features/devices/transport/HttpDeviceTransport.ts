@@ -44,7 +44,8 @@ export interface HttpTransportConfig {
  * @see DeviceTransport
  */
 export class HttpDeviceTransport implements DeviceTransport {
-  private readonly baseUrl: string;
+  readonly deviceIp: string;
+  readonly baseUrl: string;
   private readonly wsBaseUrl: string;
   private readonly headers: Record<string, string>;
   private readonly logger: Logger;
@@ -55,6 +56,7 @@ export class HttpDeviceTransport implements DeviceTransport {
 
   constructor(config: HttpTransportConfig, logger: Logger) {
     const port = config.port ?? DEVICE_HTTP_PORT;
+    this.deviceIp = config.deviceIp;
     this.baseUrl = `http://${config.deviceIp}:${port}${API_BASE_PATH}`;
     this.wsBaseUrl = `ws://${config.deviceIp}:${port}${API_BASE_PATH}`;
     this.headers = {

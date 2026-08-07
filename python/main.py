@@ -54,8 +54,9 @@ PIPER_MODEL        = "/app/models/piper/en_US-lessac-medium.onnx"
 WHISPER_MODEL_DIR  = "/app/models/faster-whisper"
 EIM_PATH           = os.environ.get("EIM_PATH", "models/new-marvin.eim")
 STOP_KEYWORD       = os.environ.get("STOP_KEYWORD", "im_done")
-STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.75"))
-STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "2"))
+STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.70"))
+STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "2"))      # detections needed in window
+STOP_WINDOW        = int(os.environ.get("STOP_WINDOW", "4"))       # sliding window size (frames)
 MIC_RATE           = 48000
 PYAUDIO_DEV      = 1  # CS202 mic
 WAKE_THRESHOLD     = 0.85
@@ -513,7 +514,10 @@ def record_thought(device):
     
     print(f"[info] [record] Listening... Max duration: {MAX_RECORD_S}s", flush=True)
     
-    stop_consec_count = 0
+    # Sliding window for stop keyword detection.
+    # A deque of the last STOP_WINDOW scores (0.0 if not keyword, else score).
+    from collections import deque as _deque
+    stop_window: _deque = _deque(maxlen=STOP_WINDOW)
     
     with audio.MicrophoneStream(device, sample_rate=SAMPLE_RATE, chunk_size=CHUNK_SIZE) as stream:
         while True:
@@ -546,16 +550,18 @@ def record_thought(device):
                     
                     # Grace period: Ignore first 2.5 seconds to avoid transient chime/echo false-positives
                     if now - start > 2.5:
-                        if best_label == STOP_KEYWORD and score >= STOP_THRESHOLD:
-                            stop_consec_count += 1
-                            print(f"[info] [inference] Stop keyword '{best_label}' detected consecutively: {stop_consec_count}/{STOP_CONSEC} (score={score:.4f})", flush=True)
-                            if stop_consec_count >= STOP_CONSEC:
-                                print(f"[info] [record] Stop keyword '{best_label}' triggered stop recording after {stop_consec_count} consecutive detections.", flush=True)
-                                break
-                        else:
-                            stop_consec_count = 0
+                        # Sliding window: push score if keyword matched, else 0
+                        slot = score if (best_label == STOP_KEYWORD and score >= STOP_THRESHOLD) else 0.0
+                        stop_window.append(slot)
+                        
+                        hits = sum(1 for s in stop_window if s > 0)
+                        if hits >= STOP_CONSEC:
+                            best_score = max(s for s in stop_window if s > 0)
+                            print(f"[info] [inference] Stop keyword '{STOP_KEYWORD}' detected: {hits}/{STOP_WINDOW} frames (best score={best_score:.4f})", flush=True)
+                            print(f"[info] [record] Stop keyword triggered stop recording.", flush=True)
+                            break
                     else:
-                        stop_consec_count = 0
+                        stop_window.clear()
                 except Exception as ex:
                     print(f"[warn] [inference] Inference step failed: {ex}", flush=True)
             
