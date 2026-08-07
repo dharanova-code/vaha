@@ -182,14 +182,18 @@ export default function NewCaptureModal() {
                 <Text variant="meta-sm" style={styles.recordingLabel}>Listening to your voice...</Text>
               </View>
               <Button variant="danger" onPress={handleStopRecording} style={styles.recordingBtn}>
-                <Feather name="square" size={16} color="#FFF" style={{ marginRight: 8 }} />
-                Stop Recording
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Feather name="square" size={16} color="#FFF" style={{ marginRight: 8 }} />
+                  <Text style={{ color: "#FFF", fontWeight: "700" }}>Stop Recording</Text>
+                </View>
               </Button>
             </View>
           ) : (
             <Button variant="primary" onPress={handleStartRecording} style={styles.micBtn}>
-              <Feather name="mic" size={18} color="#FFF" style={{ marginRight: 8 }} />
-              Dictate Note
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Feather name="mic" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={{ color: "#FFF", fontWeight: "700" }}>Dictate Note</Text>
+              </View>
             </Button>
           )}
         </View>
