@@ -11,7 +11,6 @@ import {
   Card,
   Button,
   theme,
-  Avatar,
 } from "../../src/design-system";
 import { Feather } from "@expo/vector-icons";
 
@@ -116,6 +115,38 @@ export default function NewCaptureModal() {
     router.back();
   };
 
+  // CONDITIONAL RENDER: Dedicated Full Screen Recording Mode
+  if (isRecording) {
+    return (
+      <Screen style={styles.container}>
+        <View style={styles.recordingContainer}>
+          <Text style={styles.recordingHeader}>Voice Note Recording</Text>
+          
+          <View style={styles.pulseWrapper}>
+            <View style={styles.micCircle}>
+              <Feather name="mic" size={44} color={theme.colors.semantic.error} />
+            </View>
+          </View>
+
+          <View style={styles.timerWrapper}>
+            <Text style={styles.largeTimer}>{timerText}</Text>
+            <Text style={styles.listeningSubtitle}>Listening to your voice... Speak clearly.</Text>
+          </View>
+
+          <View style={styles.recordingActions}>
+            <Button variant="danger" onPress={handleStopRecording} style={[styles.recordingBtnLarge, { backgroundColor: theme.colors.semantic.error }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+                <Feather name="square" size={16} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}>Stop Recording</Text>
+              </View>
+            </Button>
+          </View>
+        </View>
+      </Screen>
+    );
+  }
+
+  // Standard Post-Recording Form UI
   return (
     <Screen style={styles.container}>
       {/* Premium Top Navigation Bar */}
@@ -173,29 +204,14 @@ export default function NewCaptureModal() {
           />
         </Card>
 
-        {/* Dictation & Recording Controller */}
+        {/* Start Dictation Controls */}
         <View style={styles.voiceSection}>
-          {isRecording ? (
-            <View style={styles.recordingState}>
-              <View style={styles.pulseContainer}>
-                <Text variant="mono-bold" style={styles.timer}>{timerText}</Text>
-                <Text variant="meta-sm" style={styles.recordingLabel}>Listening to your voice...</Text>
-              </View>
-              <Button variant="danger" onPress={handleStopRecording} style={[styles.recordingBtn, { backgroundColor: theme.colors.semantic.error }]}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Feather name="square" size={16} color="#FFF" style={{ marginRight: 8 }} />
-                  <Text style={{ color: "#FFF", fontWeight: "700" }}>Stop Recording</Text>
-                </View>
-              </Button>
+          <Button variant="primary" onPress={handleStartRecording} style={styles.micBtn}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Feather name="mic" size={18} color="#FFF" style={{ marginRight: 8 }} />
+              <Text style={{ color: "#FFF", fontWeight: "700" }}>Dictate Note</Text>
             </View>
-          ) : (
-            <Button variant="primary" onPress={handleStartRecording} style={styles.micBtn}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Feather name="mic" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                <Text style={{ color: "#FFF", fontWeight: "700" }}>Dictate Note</Text>
-              </View>
-            </Button>
-          )}
+          </Button>
         </View>
 
         {/* Action Button */}
@@ -299,32 +315,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginVertical: 16,
   },
-  recordingState: {
-    alignItems: "center",
-    gap: 16,
-    width: "100%",
-  },
-  pulseContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-  },
-  timer: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: theme.colors.semantic.error,
-    letterSpacing: 1,
-  },
-  recordingLabel: {
-    color: theme.colors.text.muted,
-    marginTop: 4,
-  },
-  recordingBtn: {
-    width: "100%",
-    maxWidth: 260,
-    height: 48,
-    borderRadius: 24,
-  },
   micBtn: {
     width: "100%",
     maxWidth: 260,
@@ -341,5 +331,66 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginTop: 8,
+  },
+  // Dedicated Recording Screen Styles
+  recordingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 80,
+    paddingHorizontal: 24,
+    backgroundColor: theme.colors.background.primary,
+  },
+  recordingHeader: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: theme.colors.text.muted,
+    letterSpacing: 0.5,
+  },
+  pulseWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  micCircle: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: `${theme.colors.semantic.error}15`,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: `${theme.colors.semantic.error}30`,
+  },
+  timerWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  largeTimer: {
+    fontSize: 56,
+    fontWeight: "800",
+    color: theme.colors.text.primary,
+    letterSpacing: 2,
+  },
+  listeningSubtitle: {
+    fontSize: 14,
+    color: theme.colors.text.muted,
+    textAlign: "center",
+  },
+  recordingActions: {
+    width: "100%",
+    alignItems: "center",
+  },
+  recordingBtnLarge: {
+    width: "100%",
+    maxWidth: 260,
+    height: 54,
+    borderRadius: 27,
+    justifyContent: "center",
+    elevation: 4,
+    shadowColor: theme.colors.semantic.error,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
 });
