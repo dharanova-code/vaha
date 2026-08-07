@@ -14,10 +14,13 @@ import {
   Tag,
 } from "../../../src/design-system";
 import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCapturesData, FilterType } from "../../../src/features/captures/hooks/useCapturesData";
 import type { CaptureWithTags } from "../../../src/features/devices/stores/captureStore";
 
 export default function CapturesScreen() {
+  const insets = useSafeAreaInsets();
+  const bottomOffset = insets.bottom > 0 ? insets.bottom : 16;
   const {
     captures,
     totalCount,
@@ -174,7 +177,7 @@ export default function CapturesScreen() {
       )}
 
       {/* Floating Record Action Button */}
-      <View style={styles.fabContainer}>
+      <View style={[styles.fabContainer, { bottom: bottomOffset + 6 }]}>
         <Button
           variant="primary"
           onPress={() => router.push("/(modals)/new-capture" as any)}
@@ -241,7 +244,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 24,
-    paddingBottom: 110,
+    paddingBottom: 120,
   },
   emptyContainer: {
     paddingHorizontal: 24,
@@ -252,13 +255,13 @@ const styles = StyleSheet.create({
   },
   fabContainer: {
     position: "absolute",
-    bottom: 24,
     left: 24,
     right: 24,
     alignItems: "center",
   },
   fabButton: {
     width: "100%",
+    maxWidth: 340,
     height: 52,
     borderRadius: 26,
     justifyContent: "center",
