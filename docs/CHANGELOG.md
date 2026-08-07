@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-08-07
+
+### Added
+*   **Formant Voice Activity Detector (VAD)**: Implemented spectral VAD logic in `main.py` that computes Zero Crossing Rates (ZCR) and frequency band ratios (300Hz-3400Hz formant band vs >4000Hz noise band) to ignore non-human noises (running tap water, fans, room hum) during silence tracking.
+*   **Audio Chime Feedback Suite**: Synthesized custom ALSA sound cues for wake (rising double beep), stop (falling double beep), and success (ascending C-E-G major chord).
+*   **Interactive Profile Photo & Avatar picker**: Added `expo-image-picker` support, editable profile Name, Email, and Bio with persistent Zustand + SQLite SQLite schema.
+*   **Device IP Ping Test**: Added interactive "Test IP" button in Settings to send active HTTP status check to Vaha Box.
+
+### Fixed
+*   **Mid-Sentence Recording Cutoffs**: Increased stop keyword threshold to 0.92, required 4 out of 6 sliding window frames, and gated inference to only run when human voice is actively detected, protecting continuous speech.
+*   **10-Second Silence Auto-Stop**: Extended silence VAD auto-stop to 10.0 seconds so long pauses are allowed, but the box auto-stops without needing keyword repetition.
+*   **Dynamic Time Greetings**: Replaced hardcoded greeting on Home screen with real local time-of-day greetings (Good Morning / Afternoon / Evening / Night) and user's first name.
+*   **Notion Sync Skip**: Notion sync now dynamically enables when `NOTION_TOKEN` and `NOTION_DATABASE_ID` are present in `.env`, instead of being hardcoded to `False`.
+
+### Changed
+*   **Whisper Performance Boost**: Upgraded transcription speed 5x by switching default `WHISPER_MODEL_NAME` to `base.en` and replacing CPU-intensive STFT `noisereduce` with sub-millisecond normalization. Total pipeline lag dropped from ~36s to ~4-5s.
+*   **Airy & Spacious Card Layout**: Redesigned captures list with 18px padding, 16px margins, clean pill filters, and floating Record Note button to eliminate cramped and cluttered elements.
+*   **Tab Titles**: Renamed tabs to Home, My Notes, and My Device.
+
+---
+
 ## [1.1.0] - 2026-08-07
 
 ### Fixed
