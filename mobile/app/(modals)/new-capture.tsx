@@ -20,6 +20,7 @@ import { Feather } from "@expo/vector-icons";
 async function suggestTitleUsingGroq(transcript: string, apiKey: string): Promise<string> {
   if (!apiKey || !transcript.trim()) return "";
   try {
+    console.log("[GROQ] Generating title suggestion for transcript length:", transcript.length);
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -27,7 +28,7 @@ async function suggestTitleUsingGroq(transcript: string, apiKey: string): Promis
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama3-8b-8192",
+        model: "llama-3.1-8b-instant",
         messages: [
           {
             role: "system",
@@ -47,7 +48,11 @@ async function suggestTitleUsingGroq(transcript: string, apiKey: string): Promis
       let title = data.choices[0]?.message?.content?.trim() || "";
       // Strip quotation marks if added
       title = title.replace(/^["']|["']$/g, '');
+      console.log("[GROQ] Successfully generated title:", title);
       return title;
+    } else {
+      const errText = await response.text();
+      console.warn("[GROQ] Title generation API error:", response.status, errText);
     }
   } catch (e) {
     console.warn("Failed to generate title using Groq:", e);
