@@ -497,6 +497,52 @@ def _rms(chunk):
     ac = chunk.astype(np.float64) - np.mean(chunk)
     return float(np.sqrt(np.mean(ac**2)))
 
+# ─── VOICE ACTIVITY DETECTOR (VAD) ────────────────────────────────────────────
+def is_human_voice(chunk_i16, sample_rate=SAMPLE_RATE):
+    """
+    Discriminates human vocal cords / speech formants from non-human background noise
+    such as running tap water, fans, HVAC hum, and ambient room noise.
+    
+    Human speech characteristics:
+    1. Concentrated energy in fundamental formant band (300 Hz - 3400 Hz).
+    2. Lower Zero Crossing Rate (ZCR <= 0.35) due to voiced harmonics.
+    3. Low high-frequency energy ratio (>4000 Hz). Running water has huge >4kHz hiss.
+    """
+    if chunk_i16.size < 512:
+        return False
+        
+    ac = chunk_i16.astype(np.float64) - np.mean(chunk_i16)
+    rms = float(np.sqrt(np.mean(ac**2)))
+    if rms < RMS_THRESHOLD:
+        return False
+        
+    # Zero Crossing Rate (ZCR)
+    zero_crossings = np.sum(np.diff(np.signbit(ac))) / float(len(ac))
+    if zero_crossings > 0.35:
+        # High frequency noise like running tap water or hiss
+        return False
+
+    # FFT Spectral Band Energy Distribution
+    fft_vals = np.abs(np.fft.rfft(ac))
+    freqs = np.fft.rfftfreq(len(ac), d=1.0/sample_rate)
+    
+    total_energy = np.sum(fft_vals**2) + 1e-9
+    voice_mask = (freqs >= 300) & (freqs <= 3400)
+    high_mask = freqs > 4000
+    
+    voice_energy = np.sum(fft_vals[voice_mask]**2)
+    high_energy = np.sum(fft_vals[high_mask]**2)
+    
+    voice_ratio = voice_energy / total_energy
+    high_ratio = high_energy / total_energy
+    
+    # Running water tap has high_ratio > 0.35 and voice_ratio < 0.40
+    if voice_ratio < 0.45 or high_ratio > 0.35:
+        return False
+
+    return True
+
+# ─── RECORD THOUGHT ───────────────────────────────────────────────────────────
 def record_thought(device):
     print("[info] [record] Initializing recording...", flush=True)
     collected, start = [], time.time()
@@ -536,15 +582,14 @@ def record_thought(device):
             chunk = stream.read()
             collected.append(chunk)
             
-            # Calculate RMS energy of chunk
-            ac = chunk.astype(np.float64) - np.mean(chunk)
-            rms = float(np.sqrt(np.mean(ac**2)))
+            # Evaluate true Human Voice Activity (filters out running tap water & fan noise)
+            has_voice = is_human_voice(chunk, sample_rate=SAMPLE_RATE)
             
-            if rms >= RMS_THRESHOLD:
+            if has_voice:
                 speech_started = True
                 last_speech_time = now
-            elif speech_started and (now - last_speech_time > SILENCE_TIMEOUT_S) and (now - start > 3.5):
-                print(f"[info] [record] Silence timeout reached ({SILENCE_TIMEOUT_S}s). Auto-finishing recording.", flush=True)
+            elif speech_started and (now - last_speech_time > SILENCE_TIMEOUT_S) and (now - start > 4.0):
+                print(f"[info] [record] Human voice silence timeout reached ({SILENCE_TIMEOUT_S}s). Auto-finishing recording.", flush=True)
                 play_chime("stop")
                 break
             
@@ -562,15 +607,15 @@ def record_thought(device):
                     stop_buf = np.roll(stop_buf, -resample_len)
                     stop_buf[-resample_len:] = resampled_chunk
                     
-                    # Grace period: Ignore first 3.5s and require speech above RMS gate
-                    if now - start > 3.5 and rms >= RMS_THRESHOLD:
+                    # Require active human voice AND minimum 4s recording to evaluate stop keyword
+                    if now - start > 4.0 and has_voice:
                         best_label, score, latency = stop_detector.classify(stop_buf.tolist())
                         
-                        slot = score if (best_label == STOP_KEYWORD and score >= STOP_THRESHOLD) else 0.0
+                        slot = score if (best_label == STOP_KEYWORD and score >= 0.92) else 0.0
                         stop_window.append(slot)
                         
                         hits = sum(1 for s in stop_window if s > 0)
-                        if hits >= STOP_CONSEC:
+                        if hits >= 4:  # Require 4 out of 6 frames above 0.92
                             best_score = max(s for s in stop_window if s > 0)
                             print(f"[info] [inference] Stop keyword '{STOP_KEYWORD}' confirmed: {hits}/{STOP_WINDOW} frames (score={best_score:.4f})", flush=True)
                             print(f"[info] [record] Stop keyword triggered stop recording.", flush=True)
@@ -656,8 +701,8 @@ def listen_for_wake_word():
             buf = np.roll(buf, -slice_sz)
             buf[-slice_sz:] = resampled
 
-            if rms < RMS_THRESHOLD:
-                # Mic level below threshold (ambient silence / low hum)
+            if not is_human_voice(chunk_i16, sample_rate=MIC_RATE):
+                # Non-voice audio (ambient silence / tap water / fan hum)
                 consec = 0
                 continue
 
