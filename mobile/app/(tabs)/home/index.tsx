@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { StyleSheet, View, ScrollView, RefreshControl } from "react-native";
 import { router } from "expo-router";
 import {
@@ -9,18 +9,15 @@ import {
   Button,
   SectionHeader,
   ListItem,
-  InsightCard,
   DeviceCard,
   SensorCard,
   EmptyState,
   Avatar,
+  theme,
 } from "../../../src/design-system";
 import { Feather } from "@expo/vector-icons";
 import { TouchableOpacity } from "react-native";
 import { useHomeData } from "../../../src/features/home/hooks/useHomeData";
-import { quickActions } from "../../../src/features/home/mock/quickActions";
-import { continuingAnchor } from "../../../src/features/home/mock/recentCaptures";
-
 import { useSettingsStore } from "../../../src/features/settings/stores/settingsStore";
 
 function getDynamicGreeting(name?: string): { greeting: string; prompt: string } {
@@ -62,8 +59,24 @@ export default function HomeScreen() {
     onRefresh,
   } = useHomeData();
 
-  const { userName, userAvatarUri } = useSettingsStore();
+  const { userName, userAvatarUri, loadSettings } = useSettingsStore();
   const { greeting, prompt } = getDynamicGreeting(userName);
+
+  // Load and refresh settings to ensure avatar & profile update immediately
+  useEffect(() => {
+    loadSettings();
+    onRefresh();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sort captures descending by creation date (newest first) and limit to exactly 5 notes
+  const sortedRecentCaptures = [...captures]
+    .sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    })
+    .slice(0, 5);
 
   return (
     <Screen
@@ -71,11 +84,10 @@ export default function HomeScreen() {
       withMarginThread
       style={styles.container}
       refreshControl={
-        <RefreshControl refreshing={isLoading || isSyncing} onRefresh={onRefresh} />
+        <RefreshControl refreshing={isLoading || isSyncing} onRefresh={onRefresh} tintColor={theme.colors.accent.primary} />
       }
     >
-
-      {/* 1. Welcoming Dynamic Greeting Header with Top Right Settings & Profile Trigger */}
+      {/* 1. Welcoming Dynamic Greeting Header with Settings/Profile Trigger */}
       <View style={styles.headerContainer} testID="welcome-header">
         <View style={styles.headerRow}>
           <View style={styles.headerTextCol}>
@@ -96,26 +108,44 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* 2. Unfinished Note */}
-      <SectionHeader title="Unfinished Note" />
-      <View testID="continuing-anchor">
-        <Card variant="outlined" style={styles.anchorCard}>
-          <View style={styles.anchorHeader}>
-            <Tag label="draft" variant="warning" />
-            <Text variant="mono-bold" style={styles.anchorTime}>
-              {continuingAnchor.timestamp}
-            </Text>
+      {/* 2. Sleek Voice Workspace Summary (Replaces Unfinished Note) */}
+      <SectionHeader title="Voice Library Status" />
+      <View style={{ marginBottom: 24 }}>
+        <Card style={styles.summaryCard}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryCol}>
+              <Text variant="headline-lg" style={styles.summaryMetric}>
+                {captures.length}
+              </Text>
+              <Text variant="meta-sm" style={styles.summaryLabel}>
+                Total Notes
+              </Text>
+            </View>
+            
+            <View style={styles.summaryDivider} />
+            
+            <View style={styles.summaryCol}>
+              <Text variant="headline-lg" style={styles.summaryMetric}>
+                {todayCount}
+              </Text>
+              <Text variant="meta-sm" style={styles.summaryLabel}>
+                Today
+              </Text>
+            </View>
+            
+            <View style={styles.summaryDivider} />
+            
+            <View style={styles.summaryCol}>
+              <Feather name="check-circle" size={24} color={theme.colors.semantic.success} style={{ marginBottom: 4 }} />
+              <Text variant="meta-sm" style={[styles.summaryLabel, { fontWeight: "700", color: theme.colors.semantic.success }]}>
+                Fully Synced
+              </Text>
+            </View>
           </View>
-          <Text variant="headline-lg" style={styles.anchorTitle}>
-            {continuingAnchor.title}
-          </Text>
-          <Text variant="body-md" style={styles.anchorExcerpt}>
-            {continuingAnchor.excerpt}
-          </Text>
         </Card>
       </View>
 
-      {/* 3. Device Connection */}
+      {/* 3. Device Connection Status */}
       <SectionHeader title="Device Connection" />
       <View style={styles.statusSection} testID="device-status">
         {isOffline && (
@@ -150,33 +180,23 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* 4. Daily Inspiration */}
-      <SectionHeader title="Daily Inspiration" />
-      <View testID="suggested-reflection">
-        <InsightCard
-          quote="Simple ideas recorded clearly are the start of great things. Speak freely."
-          sourceTitle="Vaha Voice Notes"
-          timestamp="Today"
-        />
-      </View>
-
-      {/* 5. Recent Voice Notes */}
+      {/* 4. Recent Voice Notes (Max 5, sorted newest first) */}
       <SectionHeader title="Recent Voice Notes" />
       <View style={styles.timelineList} testID="recent-timeline">
-        {captures.length === 0 ? (
+        {sortedRecentCaptures.length === 0 ? (
           <EmptyState
             variant="captures"
             title="No voice notes yet"
             message="Notes you record on your Vaha device will automatically show up here."
           />
         ) : (
-          captures.map(capture => (
+          sortedRecentCaptures.map(capture => (
             <ListItem
               key={capture.id}
-              title={capture.transcript ?? capture.title ?? "Untitled Note"}
+              title={capture.title ?? capture.transcript?.substring(0, 45) ?? "Voice Note"}
               subtitle={
                 capture.createdAt
-                  ? new Date(capture.createdAt).toLocaleString()
+                  ? new Date(capture.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + " - " + new Date(capture.createdAt).toLocaleDateString()
                   : "Unknown time"
               }
               rightElement={
@@ -192,7 +212,6 @@ export default function HomeScreen() {
           ))
         )}
       </View>
-
     </Screen>
   );
 }
@@ -232,38 +251,40 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 8,
   },
-  anchorCard: {
-    marginBottom: 24,
-    padding: 16,
+  summaryCard: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: theme.colors.background.secondary,
+    borderWidth: 1,
+    borderColor: theme.colors.accent.border,
+    borderRadius: 16,
   },
-  anchorHeader: {
+  summaryRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    justifyContent: "space-between",
   },
-  anchorTime: {
-    fontSize: 12,
-    opacity: 0.6,
-  },
-  anchorTitle: {
-    marginBottom: 8,
-  },
-  anchorExcerpt: {
-    opacity: 0.7,
-    lineHeight: 22,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 24,
-  },
-  actionButton: {
+  summaryCol: {
     flex: 1,
-    minWidth: 100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summaryMetric: {
+    color: theme.colors.text.primary,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    color: theme.colors.text.muted,
+    fontSize: 12,
+  },
+  summaryDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 36,
+    backgroundColor: theme.colors.accent.border,
   },
   timelineList: {
     marginBottom: 24,
+    gap: 8,
   },
 });
