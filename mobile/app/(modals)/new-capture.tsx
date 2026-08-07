@@ -1,24 +1,19 @@
 import React, { useState, useCallback, useRef } from "react";
-import { StyleSheet, View, ScrollView, TextInput, ActivityIndicator, Alert } from "react-native";
+import { StyleSheet, View, ScrollView, TextInput, ActivityIndicator, Alert, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { Container } from "../../src/core/di/Container";
 import { AudioRecordingService } from "../../src/features/captures/services/AudioRecordingService";
-import { DeviceClient } from "../../src/features/devices/client/DeviceClient";
 import { useCaptureStore } from "../../src/features/devices/stores/captureStore";
 import { deleteAsync, documentDirectory } from "expo-file-system/legacy";
-import { appConfig } from "../../src/core/config/AppConfig";
 import {
   Screen,
   Text,
   Card,
   Button,
   theme,
-  Icon,
-  Input,
-  TopBar
+  Avatar,
 } from "../../src/design-system";
-
-
+import { Feather } from "@expo/vector-icons";
 
 export default function NewCaptureModal() {
   const router = useRouter();
@@ -82,12 +77,9 @@ export default function NewCaptureModal() {
       const localWavPath = `${documentDirectory}vaha/audio/${uuid}.wav`;
       
       try {
-        const { TranscriptionService } = require("../../src/features/captures/services/TranscriptionService");
         const transcriptionService = Container.getInstance().resolve<any>("TranscriptionService");
-        
         const uploadResult = await transcriptionService.transcribe(localWavPath);
         
-        // PRIVACY FIRST: Delete local audio file immediately after transcribing
         try {
           await deleteAsync(localWavPath, { idempotent: true });
         } catch (e) {
@@ -126,78 +118,86 @@ export default function NewCaptureModal() {
 
   return (
     <Screen style={styles.container}>
-      <TopBar 
-        title="New Capture"
-        leftAction={(
-          <Button variant="ghost" onPress={() => router.back()} style={styles.navBtn}>
-            <Text variant="label-sm">Cancel</Text>
-          </Button>
-        )}
-      />
+      {/* Premium Top Navigation Bar */}
+      <View style={styles.topNav}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+          <Feather name="x" size={20} color={theme.colors.text.primary} />
+        </TouchableOpacity>
+        <Text style={styles.navTitle}>New Voice Note</Text>
+        <TouchableOpacity onPress={handleSave} style={styles.saveHeaderBtn}>
+          <Text style={styles.saveHeaderText}>Save</Text>
+        </TouchableOpacity>
+      </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <Card style={styles.card}>
-          <Text variant="mono-bold" style={styles.label}>Title (Optional)</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {/* Single Integrated Input Form Card */}
+        <Card style={styles.inputCard}>
+          <Text variant="label-sm" style={styles.inputLabel}>TITLE (OPTIONAL)</Text>
           <TextInput
             style={styles.textInput}
             value={title}
             onChangeText={setTitle}
-            placeholder="e.g. Morning thoughts"
+            placeholder="e.g. Ideas for Vaha"
             placeholderTextColor={theme.colors.text.muted}
           />
-        </Card>
 
-        <Card style={styles.card}>
-          <Text variant="mono-bold" style={styles.label}>Transcript</Text>
-          <TextInput
-            style={[styles.textInput, styles.textArea]}
-            value={transcript}
-            onChangeText={setTranscript}
-            multiline
-            numberOfLines={6}
-            placeholder="Type your thought here, or tap the microphone below to dictate..."
-            placeholderTextColor={theme.colors.text.muted}
-          />
-          {isTranscribing && (
-            <View style={styles.transcribingOverlay}>
-              <ActivityIndicator color={theme.colors.accent.primary} />
-              <Text variant="meta-sm" style={styles.transcribingText}>Transcribing offline...</Text>
-            </View>
-          )}
-        </Card>
+          <View style={{ height: 16 }} />
 
-        <Card style={styles.card}>
-          <Text variant="mono-bold" style={styles.label}>Tags (Comma separated)</Text>
+          <Text variant="label-sm" style={styles.inputLabel}>TRANSCRIPT / TEXT</Text>
+          <View style={styles.textAreaContainer}>
+            <TextInput
+              style={styles.textArea}
+              value={transcript}
+              onChangeText={setTranscript}
+              multiline
+              placeholder="Start typing your thought here, or tap dictate below..."
+              placeholderTextColor={theme.colors.text.muted}
+            />
+            {isTranscribing && (
+              <View style={styles.transcribingOverlay}>
+                <ActivityIndicator color={theme.colors.accent.primary} size="small" />
+                <Text variant="meta-sm" style={styles.transcribingText}>Transcribing audio...</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={{ height: 16 }} />
+
+          <Text variant="label-sm" style={styles.inputLabel}>TAGS (COMMA SEPARATED)</Text>
           <TextInput
             style={styles.textInput}
             value={tagsInput}
             onChangeText={setTagsInput}
-            placeholder="e.g. work, ideas, personal"
+            placeholder="e.g. work, ideas, reminder"
             placeholderTextColor={theme.colors.text.muted}
           />
         </Card>
 
+        {/* Dictation & Recording Controller */}
         <View style={styles.voiceSection}>
           {isRecording ? (
             <View style={styles.recordingState}>
-              <Text variant="mono-bold" style={styles.timer}>{timerText}</Text>
-              <Button variant="danger" onPress={handleStopRecording}>
+              <View style={styles.pulseContainer}>
+                <Text variant="mono-bold" style={styles.timer}>{timerText}</Text>
+                <Text variant="meta-sm" style={styles.recordingLabel}>Listening to your voice...</Text>
+              </View>
+              <Button variant="danger" onPress={handleStopRecording} style={styles.recordingBtn}>
+                <Feather name="square" size={16} color="#FFF" style={{ marginRight: 8 }} />
                 Stop Recording
               </Button>
             </View>
           ) : (
             <Button variant="primary" onPress={handleStartRecording} style={styles.micBtn}>
-              <Icon name="mic" color="#FFF" />
-              <Text variant="mono-bold" style={styles.micBtnText}>Dictate Thought</Text>
+              <Feather name="mic" size={18} color="#FFF" style={{ marginRight: 8 }} />
+              Dictate Note
             </Button>
           )}
         </View>
 
-        <View style={styles.actionContainer}>
-          <Button variant="outline" onPress={handleSave} style={styles.saveBtn}>
-            Save Capture
-          </Button>
-        </View>
+        {/* Action Button */}
+        <Button variant="outline" onPress={handleSave} style={styles.saveBtn}>
+          Save Note
+        </Button>
       </ScrollView>
     </Screen>
   );
@@ -208,70 +208,134 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background.primary,
   },
-  scrollContent: {
-    padding: 24,
-    paddingBottom: 64,
+  topNav: {
+    flexDirection: "row",
+    height: 56,
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.accent.border,
   },
-  card: {
-    padding: 16,
-    marginBottom: 20,
+  closeBtn: {
+    padding: 8,
   },
-  label: {
+  navTitle: {
+    fontSize: 17,
+    fontWeight: "700",
     color: theme.colors.text.primary,
-    marginBottom: 8,
   },
-  textInput: {
+  saveHeaderBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  saveHeaderText: {
+    color: theme.colors.accent.primary,
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 48,
+  },
+  inputCard: {
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 20,
+    backgroundColor: theme.colors.background.secondary,
     borderWidth: 1,
     borderColor: theme.colors.accent.border,
-    borderRadius: 8,
-    padding: 12,
+  },
+  inputLabel: {
+    color: theme.colors.text.muted,
+    fontSize: 11,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    fontWeight: "600",
+  },
+  textInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.accent.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     color: theme.colors.text.primary,
-    backgroundColor: theme.colors.background.secondary,
-    fontFamily: "System",
-    fontSize: 16,
+    backgroundColor: theme.colors.background.primary,
+    fontSize: 15,
+  },
+  textAreaContainer: {
+    position: "relative",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.accent.border,
+    borderRadius: 10,
+    backgroundColor: theme.colors.background.primary,
+    padding: 10,
   },
   textArea: {
-    height: 120,
+    height: 130,
     textAlignVertical: "top",
+    color: theme.colors.text.primary,
+    fontSize: 15,
+    padding: 4,
   },
   transcribingOverlay: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 8,
     gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.accent.border,
+    paddingTop: 8,
   },
   transcribingText: {
     color: theme.colors.accent.primary,
+    fontSize: 12,
   },
   voiceSection: {
     alignItems: "center",
-    marginVertical: 12,
+    marginVertical: 16,
   },
   recordingState: {
     alignItems: "center",
-    gap: 12,
+    gap: 16,
+    width: "100%",
   },
-  timer: {
-    fontSize: 24,
-    color: theme.colors.semantic.error,
-  },
-  micBtn: {
-    flexDirection: "row",
+  pulseContainer: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 24,
+    padding: 16,
   },
-  micBtnText: {
-    color: "#FFF",
+  timer: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: theme.colors.semantic.error,
+    letterSpacing: 1,
   },
-  actionContainer: {
-    marginTop: 12,
+  recordingLabel: {
+    color: theme.colors.text.muted,
+    marginTop: 4,
+  },
+  recordingBtn: {
+    width: "100%",
+    maxWidth: 260,
+    height: 48,
+    borderRadius: 24,
+  },
+  micBtn: {
+    width: "100%",
+    maxWidth: 260,
+    height: 48,
+    borderRadius: 24,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   saveBtn: {
     width: "100%",
+    height: 50,
+    borderRadius: 25,
+    marginTop: 8,
   },
-  navBtn: {
-    paddingHorizontal: 8,
-  }
 });

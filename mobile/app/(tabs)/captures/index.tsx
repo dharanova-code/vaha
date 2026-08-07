@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from "react";
-import { FlatList, StyleSheet, RefreshControl, View, ScrollView } from "react-native";
+import { FlatList, StyleSheet, RefreshControl, View, ScrollView, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
 import {
   Screen,
@@ -65,12 +65,25 @@ export default function CapturesScreen() {
 
   return (
     <Screen withMarginThread style={styles.container}>
-      {/* Spacious Screen Title */}
+      {/* Spacious Screen Title & Sort Action */}
       <View style={styles.headerRow}>
-        <SectionHeader title={`My Notes${totalCount > 0 ? ` (${totalCount})` : ""}`} />
+        <Text style={styles.titleText}>My Notes ({totalCount})</Text>
+        <TouchableOpacity
+          onPress={() => {
+            if (sortOrder === "newest") setSortOrder("oldest");
+            else if (sortOrder === "oldest") setSortOrder("alphabetical");
+            else setSortOrder("newest");
+          }}
+          style={styles.headerSortButton}
+        >
+          <Feather name="arrow-down" size={14} color={theme.colors.accent.primary} style={{ marginRight: 4 }} />
+          <Text style={styles.sortButtonText}>
+            {sortOrder === "newest" ? "Newest" : sortOrder === "oldest" ? "Oldest" : "A-Z"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Search & Sort Toolbar */}
+      {/* Search Toolbar (Takes full width of row) */}
       <View style={styles.toolbar}>
         <View style={styles.searchWrapper}>
           <SearchBar
@@ -81,18 +94,6 @@ export default function CapturesScreen() {
             accessibilityLabel="Search notes"
           />
         </View>
-        <Button
-          variant="ghost"
-          onPress={() => {
-            if (sortOrder === "newest") setSortOrder("oldest");
-            else if (sortOrder === "oldest") setSortOrder("alphabetical");
-            else setSortOrder("newest");
-          }}
-          accessibilityLabel="Cycle sorting"
-          style={styles.sortButton}
-        >
-          {sortOrder === "newest" ? "↓ Newest" : sortOrder === "oldest" ? "↑ Oldest" : "A-Z"}
-        </Button>
       </View>
 
       {/* Spacious Filter Chips Row */}
@@ -200,18 +201,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 24,
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  toolbar: {
+  titleText: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: theme.colors.text.primary,
+    letterSpacing: -0.5,
+  },
+  headerSortButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: `${theme.colors.accent.primary}15`,
+  },
+  sortButtonText: {
+    color: theme.colors.accent.primary,
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  toolbar: {
     marginBottom: 16,
     paddingHorizontal: 24,
   },
   searchWrapper: {
-    flex: 1,
+    width: "100%",
   },
   sortButton: {
     minWidth: 86,
