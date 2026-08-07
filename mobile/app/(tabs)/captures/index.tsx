@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from "react";
-import { FlatList, StyleSheet, RefreshControl, View, ScrollView, TouchableOpacity } from "react-native";
+import { FlatList, StyleSheet, RefreshControl, View, ScrollView, TouchableOpacity, Animated } from "react-native";
 import { router } from "expo-router";
 import {
   Screen,
@@ -22,17 +22,14 @@ export default function CapturesScreen() {
   const insets = useSafeAreaInsets();
   const bottomOffset = insets.bottom > 0 ? insets.bottom : 16;
 
-  const [scrollProgress, setScrollProgress] = React.useState(0);
+  const scrollY = React.useRef(new Animated.Value(0)).current;
   const [contentHeight, setContentHeight] = React.useState(1);
   const [layoutHeight, setLayoutHeight] = React.useState(1);
 
-  const handleScroll = useCallback((event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const maxScroll = contentHeight - layoutHeight;
-    if (maxScroll > 0) {
-      setScrollProgress(Math.min(Math.max(offsetY / maxScroll, 0), 1));
-    }
-  }, [contentHeight, layoutHeight]);
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true }
+  );
 
   const {
     captures,
@@ -75,6 +72,13 @@ export default function CapturesScreen() {
   );
 
   const keyExtractor = useCallback((item: CaptureWithTags) => item.uuid, []);
+
+  const maxScroll = contentHeight - layoutHeight;
+  const indicatorTranslateY = scrollY.interpolate({
+    inputRange: [0, Math.max(maxScroll, 1)],
+    outputRange: [0, Math.max(layoutHeight - 140, 0)],
+    extrapolate: "clamp",
+  });
 
   return (
     <Screen withMarginThread style={styles.container}>
@@ -174,7 +178,7 @@ export default function CapturesScreen() {
       {/* Uncluttered Spacious Capture List */}
       {!isLoading && !isEmpty && (
         <View style={{ flex: 1, flexDirection: "row" }}>
-          <FlatList<CaptureWithTags>
+          <Animated.FlatList<CaptureWithTags>
             data={captures}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
@@ -198,11 +202,11 @@ export default function CapturesScreen() {
           {/* Custom Scroll Progress Sidebar Indicator */}
           {contentHeight > layoutHeight && (
             <View style={styles.scrollTrack}>
-              <View
+              <Animated.View
                 style={[
                   styles.scrollIndicator,
                   {
-                    top: scrollProgress * (layoutHeight - 80),
+                    transform: [{ translateY: indicatorTranslateY }],
                   },
                 ]}
               />
