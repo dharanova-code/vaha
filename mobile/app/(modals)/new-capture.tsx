@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.layout.mobileMargin,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.accent.border,
   },
@@ -235,11 +235,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   scrollContent: {
-    padding: 20,
+    padding: theme.layout.mobileMargin,
     paddingBottom: 48,
   },
   inputCard: {
-    padding: 20,
+    padding: 16,
     borderRadius: 16,
     marginBottom: 20,
     backgroundColor: theme.colors.background.secondary,

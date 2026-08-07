@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.layout.mobileMargin,
     marginBottom: 16,
   },
   titleText: {
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   },
   toolbar: {
     marginBottom: 16,
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.layout.mobileMargin,
   },
   searchWrapper: {
     width: "100%",
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     height: 38,
   },
   filtersContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.layout.mobileMargin,
     gap: 10,
     alignItems: "center",
   },
@@ -263,11 +263,11 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.accent.border,
   },
   list: {
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.layout.mobileMargin,
     paddingBottom: 120,
   },
   emptyContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.layout.mobileMargin,
     marginTop: 32,
   },
   footer: {
@@ -275,8 +275,8 @@ const styles = StyleSheet.create({
   },
   fabContainer: {
     position: "absolute",
-    left: 24,
-    right: 24,
+    left: theme.layout.mobileMargin,
+    right: theme.layout.mobileMargin,
     alignItems: "center",
   },
   fabButton: {
