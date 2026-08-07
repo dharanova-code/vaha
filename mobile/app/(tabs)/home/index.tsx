@@ -21,6 +21,34 @@ import { useHomeData } from "../../../src/features/home/hooks/useHomeData";
 import { quickActions } from "../../../src/features/home/mock/quickActions";
 import { continuingAnchor } from "../../../src/features/home/mock/recentCaptures";
 
+import { useSettingsStore } from "../../../src/features/settings/stores/settingsStore";
+
+function getDynamicGreeting(name?: string): { greeting: string; prompt: string } {
+  const hour = new Date().getHours();
+  let timeOfDay = "Morning";
+  let prompt = "What's on your mind?";
+
+  if (hour >= 4 && hour < 12) {
+    timeOfDay = "Morning";
+    prompt = "Ready to record your thoughts today?";
+  } else if (hour >= 12 && hour < 17) {
+    timeOfDay = "Afternoon";
+    prompt = "How is your afternoon going?";
+  } else if (hour >= 17 && hour < 22) {
+    timeOfDay = "Evening";
+    prompt = "Reflect on your day's ideas...";
+  } else {
+    timeOfDay = "Night";
+    prompt = "Late night thoughts & voice memos...";
+  }
+
+  const firstName = name?.trim() ? `, ${name.trim().split(" ")[0]}` : "";
+  return {
+    greeting: `Good ${timeOfDay}${firstName}`,
+    prompt,
+  };
+}
+
 export default function HomeScreen() {
   const {
     connectionStatus,
@@ -34,6 +62,9 @@ export default function HomeScreen() {
     onRefresh,
   } = useHomeData();
 
+  const { userName, userAvatarUri } = useSettingsStore();
+  const { greeting, prompt } = getDynamicGreeting(userName);
+
   return (
     <Screen
       scrollable
@@ -44,15 +75,15 @@ export default function HomeScreen() {
       }
     >
 
-      {/* 1. Welcoming Greeting Header with Top Right Settings & Profile Trigger */}
+      {/* 1. Welcoming Dynamic Greeting Header with Top Right Settings & Profile Trigger */}
       <View style={styles.headerContainer} testID="welcome-header">
         <View style={styles.headerRow}>
           <View style={styles.headerTextCol}>
             <Text variant="display-lg" style={styles.greeting}>
-              Good Morning
+              {greeting}
             </Text>
             <Text variant="body-md" style={styles.prompt}>
-              What's on your mind?
+              {prompt}
             </Text>
           </View>
           <TouchableOpacity
@@ -60,7 +91,7 @@ export default function HomeScreen() {
             onPress={() => router.push("/(tabs)/settings" as any)}
             accessibilityLabel="Open settings and profile"
           >
-            <Avatar initials="VA" size={40} />
+            <Avatar initials={userName || "Vaha"} imageUri={userAvatarUri || null} size={44} />
           </TouchableOpacity>
         </View>
       </View>

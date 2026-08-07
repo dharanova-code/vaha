@@ -11,8 +11,9 @@ import {
   Button,
   Text,
   theme,
-  Tag
+  Tag,
 } from "../../../src/design-system";
+import { Feather } from "@expo/vector-icons";
 import { useCapturesData, FilterType } from "../../../src/features/captures/hooks/useCapturesData";
 import type { CaptureWithTags } from "../../../src/features/devices/stores/captureStore";
 
@@ -32,10 +33,9 @@ export default function CapturesScreen() {
     sortOrder,
     setSortOrder,
     onRefresh,
-    handleDelete,
   } = useCapturesData();
 
-  // Load captures on mount once
+  // Load captures on mount
   useEffect(() => {
     onRefresh();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -43,13 +43,12 @@ export default function CapturesScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: CaptureWithTags }) => {
-      const sourceLabel = item.deviceId === null ? "MOBILE" : "DEVICE";
       return (
         <CaptureCard
           key={item.uuid}
-          title={item.title ?? item.transcript?.substring(0, 40) ?? "Untitled Capture"}
-          excerpt={item.transcript ?? "No transcript available."}
-          timestamp={item.createdAt.toLocaleString()}
+          title={item.title ?? item.transcript?.substring(0, 45) ?? "Voice Note"}
+          excerpt={item.transcript ?? "No text recorded."}
+          timestamp={item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Today"}
           onPress={() => {
             router.push({ pathname: "/(modals)/capture-details", params: { uuid: item.uuid } });
           }}
@@ -63,16 +62,19 @@ export default function CapturesScreen() {
 
   return (
     <Screen withMarginThread style={styles.container}>
-      <SectionHeader title={`My Notes${totalCount > 0 ? ` (${totalCount})` : ""}`} />
+      {/* Spacious Screen Title */}
+      <View style={styles.headerRow}>
+        <SectionHeader title={`My Notes${totalCount > 0 ? ` (${totalCount})` : ""}`} />
+      </View>
 
-      {/* Search + Sort toolbar */}
+      {/* Search & Sort Toolbar */}
       <View style={styles.toolbar}>
         <View style={styles.searchWrapper}>
           <SearchBar
             value={query}
             onChangeText={setQuery}
             onClear={onClearSearch}
-            placeholder="Search notes, text..."
+            placeholder="Search voice notes..."
             accessibilityLabel="Search notes"
           />
         </View>
@@ -90,25 +92,35 @@ export default function CapturesScreen() {
         </Button>
       </View>
 
-      {/* Filters Row */}
+      {/* Spacious Filter Chips Row */}
       <View style={styles.filtersWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContent}>
           {(["all", "mobile", "uno_q", "synced", "unsynced"] as FilterType[]).map((f) => {
             const labelMap: Record<string, string> = {
-              all: "ALL",
-              mobile: "PHONE",
-              uno_q: "VAHA BOX",
-              synced: "SAVED",
-              unsynced: "PENDING",
+              all: "All Notes",
+              mobile: "Phone Memos",
+              uno_q: "Vaha Device",
+              synced: "Saved",
+              unsynced: "Pending",
             };
+            const isSelected = filter === f;
             return (
               <Button
                 key={f}
-                variant={filter === f ? "primary" : "ghost"}
+                variant={isSelected ? "primary" : "ghost"}
                 onPress={() => setFilter(f)}
-                style={styles.filterChip}
+                style={[
+                  styles.filterChip,
+                  isSelected ? styles.filterChipActive : styles.filterChipInactive,
+                ]}
               >
-                <Text variant="mono-bold" color={filter === f ? "#FFF" : theme.colors.text.muted}>
+                <Text
+                  variant="label-sm"
+                  style={{
+                    color: isSelected ? "#FFF" : theme.colors.text.muted,
+                    fontWeight: isSelected ? "700" : "500",
+                  }}
+                >
                   {labelMap[f] ?? f.toUpperCase()}
                 </Text>
               </Button>
@@ -117,28 +129,32 @@ export default function CapturesScreen() {
         </ScrollView>
       </View>
 
-      {/* Loading state */}
+      {/* Loading State */}
       {isLoading && <Loading />}
 
-      {/* Empty library state */}
+      {/* Empty Library State */}
       {!isLoading && isEmpty && (
-        <EmptyState
-          variant="captures"
-          title="No voice notes yet"
-          message="Speak to your Vaha device or tap Record Note to add your first note."
-        />
+        <View style={styles.emptyContainer}>
+          <EmptyState
+            variant="captures"
+            title="No voice notes yet"
+            message="Speak to your Vaha device or tap Record Note to add your first note."
+          />
+        </View>
       )}
 
-      {/* Empty search results state */}
+      {/* Empty Search Results State */}
       {!isLoading && isEmptySearch && (
-        <EmptyState
-          variant="search"
-          title="No results found"
-          message={`Nothing matched "${query}". Try searching for something else.`}
-        />
+        <View style={styles.emptyContainer}>
+          <EmptyState
+            variant="search"
+            title="No notes found"
+            message={`Nothing matched "${query}". Try searching for another keyword.`}
+          />
+        </View>
       )}
 
-      {/* Capture list */}
+      {/* Uncluttered Spacious Capture List */}
       {!isLoading && !isEmpty && (
         <FlatList<CaptureWithTags>
           data={captures}
@@ -157,13 +173,18 @@ export default function CapturesScreen() {
         />
       )}
 
+      {/* Floating Record Action Button */}
       <View style={styles.fabContainer}>
         <Button
           variant="primary"
           onPress={() => router.push("/(modals)/new-capture" as any)}
           accessibilityLabel="Record new note"
+          style={styles.fabButton}
         >
-          Record Note
+          <View style={styles.fabInner}>
+            <Feather name="mic" size={18} color="#FFF" style={{ marginRight: 8 }} />
+            <Text style={styles.fabText}>Record Note</Text>
+          </View>
         </Button>
       </View>
     </Screen>
@@ -172,47 +193,89 @@ export default function CapturesScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 24,
+    paddingTop: 20,
+    flex: 1,
+  },
+  headerRow: {
+    paddingHorizontal: 24,
+    marginBottom: 8,
   },
   toolbar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 16,
     paddingHorizontal: 24,
   },
   searchWrapper: {
     flex: 1,
   },
   sortButton: {
-    minWidth: 80,
+    minWidth: 86,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: "center",
   },
   filtersWrapper: {
-    marginBottom: 16,
-    height: 40,
+    marginBottom: 20,
+    height: 38,
   },
   filtersContent: {
     paddingHorizontal: 24,
-    gap: 8,
+    gap: 10,
     alignItems: "center",
   },
   filterChip: {
-    paddingHorizontal: 12,
-    height: 32,
+    paddingHorizontal: 16,
+    height: 36,
     justifyContent: "center",
-    borderRadius: 16,
+    borderRadius: 18,
+  },
+  filterChipActive: {
+    backgroundColor: theme.colors.accent.primary,
+  },
+  filterChipInactive: {
+    backgroundColor: theme.colors.background.secondary,
+    borderWidth: 1,
+    borderColor: theme.colors.accent.border,
   },
   list: {
-    paddingBottom: 48,
     paddingHorizontal: 24,
+    paddingBottom: 110,
+  },
+  emptyContainer: {
+    paddingHorizontal: 24,
+    marginTop: 32,
   },
   footer: {
-    height: 80,
+    height: 100,
   },
   fabContainer: {
     position: "absolute",
     bottom: 24,
     left: 24,
     right: 24,
-  }
+    alignItems: "center",
+  },
+  fabButton: {
+    width: "100%",
+    height: 52,
+    borderRadius: 26,
+    justifyContent: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  fabInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fabText: {
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 16,
+  },
 });

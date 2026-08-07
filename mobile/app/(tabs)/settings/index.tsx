@@ -1,5 +1,14 @@
-import React, { useState } from "react";
-import { StyleSheet, View, Switch, TextInput, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  StyleSheet,
+  View,
+  Switch,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  Image,
+  ActivityIndicator,
+} from "react-native";
 import {
   Screen,
   Text,
@@ -8,29 +17,82 @@ import {
   theme,
   SettingsItem,
   Button,
+  Avatar,
 } from "../../../src/design-system";
 import { useSettingsStore } from "../../../src/features/settings/stores/settingsStore";
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 
 export default function SettingsScreen() {
-  const { 
-    autoSync, 
+  const {
+    autoSync,
     setAutoSync,
-    retentionDays, 
+    retentionDays,
     setRetentionDays,
     userName,
     setUserName,
     userEmail,
     setUserEmail,
+    userBio,
+    setUserBio,
+    userAvatarUri,
+    setUserAvatarUri,
+    serverIp,
+    setServerIp,
     groqApiKey,
     setGroqApiKey,
+    loadSettings,
   } = useSettingsStore();
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [tempName, setTempName] = useState(userName);
   const [tempEmail, setTempEmail] = useState(userEmail);
+  const [tempBio, setTempBio] = useState(userBio);
+  const [tempAvatar, setTempAvatar] = useState(userAvatarUri);
+  const [tempIp, setTempIp] = useState(serverIp);
   const [tempKey, setTempKey] = useState(groqApiKey);
   const [showKey, setShowKey] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  useEffect(() => {
+    setTempName(userName);
+    setTempEmail(userEmail);
+    setTempBio(userBio);
+    setTempAvatar(userAvatarUri);
+    setTempIp(serverIp);
+    setTempKey(groqApiKey);
+  }, [userName, userEmail, userBio, userAvatarUri, serverIp, groqApiKey]);
+
+  const handlePickAvatar = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Permission Required", "Please allow access to your photos to set a profile picture.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        setTempAvatar(uri);
+        if (!isEditingProfile) {
+          setUserAvatarUri(uri);
+        }
+      }
+    } catch (e) {
+      console.warn("Error picking image:", e);
+    }
+  };
 
   const getRetentionText = (days: number) => {
     if (days === 0) return "Forever";
@@ -38,149 +100,229 @@ export default function SettingsScreen() {
   };
 
   const handleCycleRetention = () => {
-    const cycles = [7, 30, 90, 0]; // 0 means forever
+    const cycles = [7, 30, 90, 0];
     const currentIndex = cycles.indexOf(retentionDays);
     const nextIndex = currentIndex === -1 || currentIndex === cycles.length - 1 ? 0 : currentIndex + 1;
     setRetentionDays(cycles[nextIndex] as number);
   };
 
   const handleSaveProfile = () => {
-    setUserName(tempName);
-    setUserEmail(tempEmail);
-    setGroqApiKey(tempKey);
+    setUserName(tempName.trim());
+    setUserEmail(tempEmail.trim());
+    setUserBio(tempBio.trim());
+    setUserAvatarUri(tempAvatar);
+    setServerIp(tempIp.trim());
+    setGroqApiKey(tempKey.trim());
     setIsEditingProfile(false);
+    Alert.alert("Profile Saved", "Your settings and profile have been updated successfully.");
   };
 
-  const handleEditProfile = () => {
-    setTempName(userName);
-    setTempEmail(userEmail);
-    setTempKey(groqApiKey);
-    setIsEditingProfile(true);
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(`http://${tempIp.trim()}:8080/api/v1/status`, {
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+      if (res.ok) {
+        Alert.alert("Connection Successful", `Connected to Vaha device at ${tempIp.trim()}`);
+      } else {
+        Alert.alert("Connection Failed", `Device returned HTTP status ${res.status}`);
+      }
+    } catch (e) {
+      Alert.alert("Connection Error", `Could not reach Vaha device at ${tempIp.trim()}. Make sure your device and phone are on the same Wi-Fi.`);
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   return (
     <Screen scrollable withMarginThread style={styles.container}>
+      {/* Page Title & Profile Header */}
       <View style={styles.headerRow}>
-        <SectionHeader title="Profile" />
+        <SectionHeader title="Profile Settings" />
         {!isEditingProfile ? (
-          <TouchableOpacity onPress={handleEditProfile} style={styles.editBtn}>
+          <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.editBtn}>
             <Feather name="edit-2" size={16} color={theme.colors.accent.primary} />
-            <Text variant="label-sm" style={styles.editText}>Edit</Text>
+            <Text variant="label-sm" style={styles.editText}>Edit Profile</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity onPress={handleSaveProfile} style={styles.editBtn}>
-            <Text variant="label-sm" style={styles.saveText}>Save</Text>
+            <Feather name="check" size={16} color={theme.colors.semantic.success} />
+            <Text variant="label-sm" style={styles.saveText}>Save Changes</Text>
           </TouchableOpacity>
         )}
       </View>
 
+      {/* Profile Card */}
       <Card style={styles.card}>
         {!isEditingProfile ? (
           <View style={styles.profileView}>
-            <View style={styles.avatarCircle}>
-              <Text variant="headline-lg" style={styles.avatarText}>
-                {userName ? userName.charAt(0).toUpperCase() : "V"}
-              </Text>
-            </View>
+            <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarWrapper}>
+              <Avatar
+                initials={userName ? userName : "User"}
+                imageUri={userAvatarUri || null}
+                size={72}
+              />
+              <View style={styles.cameraBadge}>
+                <Feather name="camera" size={12} color="#FFF" />
+              </View>
+            </TouchableOpacity>
+
             <View style={styles.profileInfo}>
               <Text variant="headline-lg" style={styles.nameText}>
-                {userName || "Guest User"}
+                {userName || "Your Name"}
               </Text>
               <Text variant="body-md" style={styles.emailText}>
-                {userEmail || "No email set"}
+                {userEmail || "Tap Edit Profile to set email"}
               </Text>
+              {Boolean(userBio) && (
+                <Text variant="meta-sm" style={styles.bioText}>
+                  {userBio}
+                </Text>
+              )}
             </View>
           </View>
         ) : (
           <View style={styles.editForm}>
-            <Text variant="label-sm" style={styles.inputLabel}>NAME</Text>
+            <View style={styles.avatarEditRow}>
+              <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarWrapperLarge}>
+                <Avatar
+                  initials={tempName || "User"}
+                  imageUri={tempAvatar || null}
+                  size={80}
+                />
+                <View style={styles.cameraOverlay}>
+                  <Feather name="camera" size={18} color="#FFF" />
+                  <Text variant="meta-sm" style={{ color: "#FFF", fontSize: 10, marginTop: 2 }}>Change</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <Text variant="label-sm" style={styles.inputLabel}>FULL NAME</Text>
             <TextInput
               style={styles.textInput}
               value={tempName}
               onChangeText={setTempName}
-              placeholder="Your Name"
+              placeholder="e.g. John Doe"
               placeholderTextColor={theme.colors.text.muted}
             />
-            
-            <Text variant="label-sm" style={styles.inputLabel}>EMAIL</Text>
+
+            <Text variant="label-sm" style={styles.inputLabel}>EMAIL ADDRESS</Text>
             <TextInput
               style={styles.textInput}
               value={tempEmail}
               onChangeText={setTempEmail}
-              placeholder="your@email.com"
+              placeholder="your.email@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
               placeholderTextColor={theme.colors.text.muted}
             />
-          </View>
-        )}
-      </Card>
 
-      <SectionHeader title="Cloud Services" />
-      <Card style={styles.card}>
-        <Text variant="body-md" style={styles.descriptionText}>
-          VAHA prioritizes local edge processing. However, if your UNO Q device is offline, we can use Groq to transcribe your recordings over the internet for free.
-        </Text>
-        
-        {!isEditingProfile ? (
-          <View style={styles.keyDisplayRow}>
-             <Text variant="body-md" style={styles.label}>Groq API Key</Text>
-             <Text variant="mono-bold" style={styles.value}>
-               {groqApiKey ? "••••••••••••••••" : "Not configured"}
-             </Text>
-          </View>
-        ) : (
-          <View style={styles.editForm}>
-            <View style={{flexDirection: "row", justifyContent: "space-between", alignItems: "center"}}>
-               <Text variant="label-sm" style={styles.inputLabel}>GROQ API KEY</Text>
-               <TouchableOpacity onPress={() => setShowKey(!showKey)}>
-                  <Feather name={showKey ? "eye-off" : "eye"} size={16} color={theme.colors.text.muted} />
-               </TouchableOpacity>
-            </View>
+            <Text variant="label-sm" style={styles.inputLabel}>BIO / SHORT NOTE</Text>
             <TextInput
-              style={styles.textInput}
-              value={tempKey}
-              onChangeText={setTempKey}
-              placeholder="gsk_..."
-              secureTextEntry={!showKey}
-              autoCapitalize="none"
+              style={[styles.textInput, { height: 70, textAlignVertical: "top" }]}
+              value={tempBio}
+              onChangeText={setTempBio}
+              placeholder="Tell us a little about your voice notes..."
+              multiline
               placeholderTextColor={theme.colors.text.muted}
             />
           </View>
         )}
       </Card>
 
-      <SectionHeader title="Preferences" />
+      {/* Device Connection Settings */}
+      <SectionHeader title="Device Connection" />
+      <Card style={styles.card}>
+        <Text variant="label-sm" style={styles.inputLabel}>VAHA DEVICE IP ADDRESS</Text>
+        <View style={styles.ipRow}>
+          <TextInput
+            style={[styles.textInput, { flex: 1 }]}
+            value={tempIp}
+            onChangeText={setTempIp}
+            placeholder="192.168.x.x"
+            keyboardType="numeric"
+            autoCapitalize="none"
+            placeholderTextColor={theme.colors.text.muted}
+          />
+          <Button
+            variant="outline"
+            onPress={handleTestConnection}
+            disabled={testingConnection}
+            style={{ minWidth: 100 }}
+          >
+            {testingConnection ? <ActivityIndicator size="small" color={theme.colors.accent.primary} /> : "Test IP"}
+          </Button>
+        </View>
+        <Text variant="meta-sm" style={styles.hintText}>
+          Enter the IP address of your Vaha Box on your local Wi-Fi.
+        </Text>
+      </Card>
+
+      {/* Cloud Services Settings */}
+      <SectionHeader title="Cloud Transcription (Optional)" />
+      <Card style={styles.card}>
+        <Text variant="body-md" style={styles.descriptionText}>
+          Vaha transcribes audio on-device. If your Vaha device is offline, you can configure your free Groq API key for cloud fallback.
+        </Text>
+
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text variant="label-sm" style={styles.inputLabel}>GROQ API KEY</Text>
+          <TouchableOpacity onPress={() => setShowKey(!showKey)}>
+            <Feather name={showKey ? "eye-off" : "eye"} size={16} color={theme.colors.text.muted} />
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          style={styles.textInput}
+          value={tempKey}
+          onChangeText={setTempKey}
+          placeholder="gsk_..."
+          secureTextEntry={!showKey}
+          autoCapitalize="none"
+          placeholderTextColor={theme.colors.text.muted}
+        />
+      </Card>
+
+      {/* App Preferences */}
+      <SectionHeader title="Preferences & Storage" />
       <Card style={styles.card}>
         <View style={styles.row}>
-          <Text variant="body-md" style={styles.label}>
-            Auto-Sync on Connect
-          </Text>
+          <View style={{ flex: 1, paddingRight: 16 }}>
+            <Text variant="body-md" style={styles.label}>Auto-Sync Notes</Text>
+            <Text variant="meta-sm" style={styles.mutedText}>Download new notes automatically when device connects</Text>
+          </View>
           <Switch
             value={autoSync}
             onValueChange={setAutoSync}
             trackColor={{
               false: theme.colors.accent.border,
-              true: theme.colors.text.primary,
+              true: theme.colors.accent.primary,
             }}
           />
         </View>
         <SettingsItem
-          label="Privacy Retention Timer"
+          label="Keep Notes Locally"
           value={getRetentionText(retentionDays)}
           onPress={handleCycleRetention}
         />
       </Card>
 
+      {/* Save Button if Editing */}
+      {isEditingProfile && (
+        <Button variant="primary" onPress={handleSaveProfile} style={{ marginBottom: 24 }}>
+          Save Profile & Settings
+        </Button>
+      )}
+
+      {/* About Section */}
       <SectionHeader title="About" />
       <Card style={styles.card}>
         <View style={styles.row}>
-          <Text variant="body-md" style={styles.label}>
-            App Version
-          </Text>
-          <Text variant="body-md" style={styles.value}>
-            1.0.0 (Phase E)
-          </Text>
+          <Text variant="body-md" style={styles.label}>App Version</Text>
+          <Text variant="body-md" style={styles.value}>1.1.0 (Commercial Baseline)</Text>
         </View>
       </Card>
     </Screen>
@@ -190,26 +332,29 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     paddingTop: 24,
-    paddingBottom: 48,
+    paddingBottom: 64,
   },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingRight: 4,
+    marginBottom: 8,
   },
   editBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    padding: 8,
-    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: `${theme.colors.accent.primary}15`,
   },
   editText: {
     color: theme.colors.accent.primary,
+    fontWeight: "600",
   },
   saveText: {
-    color: theme.colors.text.primary,
+    color: theme.colors.semantic.success,
     fontWeight: "bold",
   },
   card: {
@@ -220,6 +365,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 4,
   },
   label: {
     color: theme.colors.text.primary,
@@ -227,59 +373,99 @@ const styles = StyleSheet.create({
   value: {
     color: theme.colors.text.muted,
   },
+  mutedText: {
+    color: theme.colors.text.muted,
+    fontSize: 12,
+    marginTop: 2,
+  },
   profileView: {
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
   },
-  avatarCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: `${theme.colors.accent.primary}20`,
+  avatarWrapper: {
+    position: "relative",
+  },
+  avatarWrapperLarge: {
+    position: "relative",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  cameraBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: theme.colors.accent.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  cameraOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 40,
+    backgroundColor: "rgba(0,0,0,0.45)",
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: {
-    color: theme.colors.accent.primary,
+  avatarEditRow: {
+    alignItems: "center",
   },
   profileInfo: {
     flex: 1,
   },
   nameText: {
-    marginBottom: 4,
+    marginBottom: 2,
   },
   emailText: {
     color: theme.colors.text.muted,
+    fontSize: 14,
+  },
+  bioText: {
+    color: theme.colors.text.primary,
+    marginTop: 6,
+    fontStyle: "italic",
   },
   editForm: {
-    gap: 8,
+    gap: 6,
   },
   inputLabel: {
     color: theme.colors.text.muted,
     marginTop: 8,
     marginBottom: 4,
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
   textInput: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.accent.border,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     color: theme.colors.text.primary,
     backgroundColor: theme.colors.background.secondary,
-    fontSize: 16,
+    fontSize: 15,
+  },
+  ipRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  hintText: {
+    color: theme.colors.text.muted,
+    marginTop: 6,
+    fontSize: 12,
   },
   descriptionText: {
     color: theme.colors.text.muted,
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  keyDisplayRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.accent.border,
-    paddingTop: 16,
-  }
 });
