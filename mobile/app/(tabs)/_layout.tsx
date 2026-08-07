@@ -54,7 +54,7 @@ export default function TabLayout() {
         name="device"
         options={{
           title: "My Device",
-          tabBarIcon: ({ color, size }) => <Feather name="cpu" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Feather name="box" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
