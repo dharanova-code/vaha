@@ -5,7 +5,6 @@ import {
   Switch,
   TextInput,
   TouchableOpacity,
-  Alert,
   Image,
   ActivityIndicator,
 } from "react-native";
@@ -18,6 +17,7 @@ import {
   SettingsItem,
   Button,
   Avatar,
+  Dialog,
 } from "../../../src/design-system";
 import { useSettingsStore } from "../../../src/features/settings/stores/settingsStore";
 import { Feather } from "@expo/vector-icons";
@@ -54,6 +54,25 @@ export default function SettingsScreen() {
   const [showKey, setShowKey] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
 
+  // Custom alert dialog state
+  const [alertDialog, setAlertDialog] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+  });
+
+  const showCustomAlert = (alertTitle: string, alertMessage: string) => {
+    setAlertDialog({
+      visible: true,
+      title: alertTitle,
+      message: alertMessage,
+    });
+  };
+
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
@@ -71,7 +90,7 @@ export default function SettingsScreen() {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Please allow access to your photos to set a profile picture.");
+        showCustomAlert("Permission Required", "Please allow access to your photos to set a profile picture.");
         return;
       }
 
@@ -114,7 +133,7 @@ export default function SettingsScreen() {
     setServerIp(tempIp.trim());
     setGroqApiKey(tempKey.trim());
     setIsEditingProfile(false);
-    Alert.alert("Profile Saved", "Your settings and profile have been updated successfully.");
+    showCustomAlert("Profile Saved", "Your settings and profile have been updated successfully.");
   };
 
   const handleTestConnection = async () => {
@@ -127,12 +146,12 @@ export default function SettingsScreen() {
       });
       clearTimeout(id);
       if (res.ok) {
-        Alert.alert("Connection Successful", `Connected to Vaha device at ${tempIp.trim()}`);
+        showCustomAlert("Connection Successful", `Connected to Vaha device at ${tempIp.trim()}`);
       } else {
-        Alert.alert("Connection Failed", `Device returned HTTP status ${res.status}`);
+        showCustomAlert("Connection Failed", `Device returned HTTP status ${res.status}`);
       }
     } catch (e) {
-      Alert.alert("Connection Error", `Could not reach Vaha device at ${tempIp.trim()}. Make sure your device and phone are on the same Wi-Fi.`);
+      showCustomAlert("Connection Error", `Could not reach Vaha device at ${tempIp.trim()}. Make sure your device and phone are on the same Wi-Fi.`);
     } finally {
       setTestingConnection(false);
     }
@@ -325,6 +344,15 @@ export default function SettingsScreen() {
           <Text variant="body-md" style={styles.value}>1.1.0 (Commercial Baseline)</Text>
         </View>
       </Card>
+
+      {/* Custom design system in-app dialog alert */}
+      <Dialog
+        visible={alertDialog.visible}
+        title={alertDialog.title}
+        message={alertDialog.message}
+        confirmText="OK"
+        onConfirm={() => setAlertDialog(prev => ({ ...prev, visible: false }))}
+      />
     </Screen>
   );
 }

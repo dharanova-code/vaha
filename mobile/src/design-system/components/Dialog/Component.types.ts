@@ -5,7 +5,7 @@ export interface DialogProps {
   title: string;
   message: string;
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
   confirmText?: string;
   cancelText?: string;
   children?: ReactNode;

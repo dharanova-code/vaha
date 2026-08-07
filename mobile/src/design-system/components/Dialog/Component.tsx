@@ -22,7 +22,9 @@ export const Dialog: React.FC<DialogProps> = ({
           <Text style={styles.message}>{message}</Text>
           {children}
           <View style={styles.buttons}>
-            <Button onPress={onCancel} variant="secondary">{cancelText}</Button>
+            {onCancel && cancelText ? (
+              <Button onPress={onCancel} variant="secondary">{cancelText}</Button>
+            ) : null}
             <Button onPress={onConfirm}>{confirmText}</Button>
           </View>
         </View>

@@ -1,18 +1,59 @@
 import React, { useState, useCallback, useRef } from "react";
-import { StyleSheet, View, ScrollView, TextInput, ActivityIndicator, Alert, TouchableOpacity } from "react-native";
+import { StyleSheet, View, ScrollView, TextInput, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { Container } from "../../src/core/di/Container";
 import { AudioRecordingService } from "../../src/features/captures/services/AudioRecordingService";
 import { useCaptureStore } from "../../src/features/devices/stores/captureStore";
 import { deleteAsync, documentDirectory } from "expo-file-system/legacy";
+import { useSettingsStore } from "../../src/features/settings/stores/settingsStore";
 import {
   Screen,
   Text,
   Card,
   Button,
   theme,
+  Dialog,
 } from "../../src/design-system";
 import { Feather } from "@expo/vector-icons";
+
+// ── AI Helper to Auto-Suggest Title using Groq ───────────────────────────────
+async function suggestTitleUsingGroq(transcript: string, apiKey: string): Promise<string> {
+  if (!apiKey || !transcript.trim()) return "";
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama3-8b-8192",
+        messages: [
+          {
+            role: "system",
+            content: "You are a creative helper. Suggest a short, relevant 2-4 word title for a user's voice note. Do not repeat the prompt. Output ONLY the title itself, with no quote marks, no bullet points, and no intro text."
+          },
+          {
+            role: "user",
+            content: `Transcript: ${transcript}`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 15,
+      }),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      let title = data.choices[0]?.message?.content?.trim() || "";
+      // Strip quotation marks if added
+      title = title.replace(/^["']|["']$/g, '');
+      return title;
+    }
+  } catch (e) {
+    console.warn("Failed to generate title using Groq:", e);
+  }
+  return "";
+}
 
 export default function NewCaptureModal() {
   const router = useRouter();
@@ -27,6 +68,25 @@ export default function NewCaptureModal() {
   const recordSecs = useRef(0);
   const [timerText, setTimerText] = useState("00:00");
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Custom alert dialog state
+  const [alertDialog, setAlertDialog] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+  });
+
+  const showCustomAlert = (alertTitle: string, alertMessage: string) => {
+    setAlertDialog({
+      visible: true,
+      title: alertTitle,
+      message: alertMessage,
+    });
+  };
 
   const startTimer = () => {
     recordSecs.current = 0;
@@ -50,7 +110,7 @@ export default function NewCaptureModal() {
     const audioService = Container.getInstance().resolve<AudioRecordingService>("AudioRecordingService");
     const hasPermission = await audioService.requestPermissions();
     if (!hasPermission) {
-      Alert.alert("Permission Denied", "Microphone access is required to capture voice.");
+      showCustomAlert("Permission Denied", "Microphone access is required to capture voice.");
       return;
     }
 
@@ -59,7 +119,7 @@ export default function NewCaptureModal() {
       setIsRecording(true);
       startTimer();
     } else {
-      Alert.alert("Error", "Could not start audio recording.");
+      showCustomAlert("Error", "Could not start audio recording.");
     }
   };
 
@@ -88,21 +148,30 @@ export default function NewCaptureModal() {
         if (uploadResult.isSuccess) {
           const text = uploadResult.getValueOrThrow();
           setTranscript(prev => prev ? prev + "\n" + text : text);
+
+          // Auto-suggest Title using Groq!
+          const groqKey = useSettingsStore.getState().groqApiKey;
+          if (groqKey && text.trim()) {
+            const suggested = await suggestTitleUsingGroq(text, groqKey);
+            if (suggested) {
+              setTitle(suggested);
+            }
+          }
         } else {
-          Alert.alert("Transcription Failed", "Could not transcribe audio. You can still type your capture manually.");
+          showCustomAlert("Transcription Failed", "Could not transcribe audio. You can still type your note manually.");
         }
       } catch (e) {
-        Alert.alert("Error", "An error occurred during transcription.");
+        showCustomAlert("Error", "An error occurred during transcription.");
       }
     } else {
-      Alert.alert("Error", "Failed to retrieve audio recording.");
+      showCustomAlert("Error", "Failed to retrieve audio recording.");
     }
     setIsTranscribing(false);
   };
 
   const handleSave = async () => {
     if (!transcript.trim()) {
-      Alert.alert("Empty Capture", "Please record some speech or write a transcript before saving.");
+      showCustomAlert("Empty Capture", "Please record some speech or write a transcript before saving.");
       return;
     }
 
@@ -219,6 +288,15 @@ export default function NewCaptureModal() {
           Save Note
         </Button>
       </ScrollView>
+
+      {/* Custom design system in-app dialog alert */}
+      <Dialog
+        visible={alertDialog.visible}
+        title={alertDialog.title}
+        message={alertDialog.message}
+        confirmText="OK"
+        onConfirm={() => setAlertDialog(prev => ({ ...prev, visible: false }))}
+      />
     </Screen>
   );
 }
@@ -371,6 +449,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: theme.colors.text.primary,
     letterSpacing: 2,
+    lineHeight: 64, // Fix timer text clipping at top and bottom
+    fontFamily: "System",
+    textAlign: "center",
+    paddingVertical: 8,
   },
   listeningSubtitle: {
     fontSize: 14,
