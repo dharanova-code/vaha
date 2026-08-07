@@ -8,10 +8,10 @@ This document tracks the specification and development progress of the Vaha phys
 
 ## 1. Product Maturity Dashboard
 
-*   **Documentation Baseline**: Established (v1.1.0)
-*   **Physical Device MVP Status**: ✅ Functional — pipeline working end-to-end
-*   **Companion App MVP Status**: 🚧 Integration — sync and transcription in repair
-*   **Next Milestone**: Transcription & Sync Stability + Sensor TVOC Fix
+*   **Documentation Baseline**: Established (v1.2.0)
+*   **Physical Device MVP Status**: ✅ Functional — pipeline working end-to-end with high performance
+*   **Companion App MVP Status**: ✅ Functional — sync, transcription, custom profile avatar, settings working cleanly
+*   **Next Milestone**: BLE provisioning flow integration + Sensor TVOC firmware fix
 
 ---
 
@@ -21,30 +21,30 @@ This document tracks the specification and development progress of the Vaha phys
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Wake word detection | ✅ Working | Edge Impulse `new-marvin.eim` (threshold 0.85, 3 consec frames, 2.5s grace after chime) |
-| Recording pipeline | ✅ Working | Continuous; stops on `im_done` keyword (0.75 threshold, 2 consec frames) |
-| On-device Whisper transcription | ✅ Working | `faster-whisper small`, int8, CPU |
-| Edge HTTP API (FastAPI) | ✅ Working | Port 8080, auth token `vaha-dev-2026` |
-| `/captures/transcribe` endpoint | ✅ Fixed | Was broken (500 error — used `__main__` import hack). Now has self-contained Whisper singleton |
+| Wake word detection | ✅ Working | Edge Impulse `new-marvin.eim` with spectral formant voice gate (ZCR + frequency ratio checks) |
+| Recording pipeline | ✅ Working | Stops on `im_done` keyword (0.92 threshold, 4/6 sliding frames) OR 10.0s human voice silence VAD |
+| On-device Whisper transcription | ✅ Working | Upgraded to `faster-whisper base.en` for 5x faster transcription with sub-millisecond normalize |
+| Edge HTTP API (FastAPI) | ✅ Working | Port 8080, auth token check |
+| `/captures/transcribe` endpoint | ✅ Working | Loads model based on configurable `WHISPER_MODEL_NAME` |
 | DHT22 sensor (Temp/Humidity) | ✅ Working | Read via `Bridge.call('sensors_get')` |
 | Flow sensor (L/min) | ✅ Working | Read via bridge |
 | TVOC sensor (SGP30) | ❌ Broken | Returns hardcoded 8889 ppb — sensor not properly initialized in sketch firmware |
-| Notion sync | ✅ Working | Syncs transcripts with telemetry to Notion database via API |
-| WebSocket server | ✅ Working | Port 8080/ws, broadcasts `capture_ready` and heartbeat |
+| Notion sync | ✅ Working | Dynamically enabled when token/db ID are present, syncs telemetry & notes |
+| WebSocket server | ✅ Working | Port 8080/ws, broadcasts live capture states and heartbeats |
 
 ### 2.2 Companion Application Subsystems (Expo React Native)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Device connection (HTTP) | ✅ Working | Connects to Uno Q via user-configured IP |
-| Captures list | ✅ Working | Fetches and displays captures from device |
-| Audio download / sync | ✅ Fixed | Was retrying endlessly due to re-fetching stale metadata; now uses cached metadata map |
-| Groq cloud transcription fallback | ✅ Working | Sends to `api.groq.com/openai/v1/audio/transcriptions` when device offline |
-| Settings (Groq API key, server IP) | ✅ Working | Persists to SQLite via drizzle-orm |
-| Sensor display | ✅ Working | Shows temp/humidity/flow; TVOC shows wrong value (firmware bug) |
+| Device connection (HTTP) | ✅ Working | Connects to Uno Q via user-configured IP, test IP ping button |
+| My Notes list | ✅ Working | Redesigned with spacious, unclustered layout, floating FAB |
+| Audio download / sync | ✅ Working | Direct downloadAsync binary fetch, purges device on success |
+| Groq cloud transcription fallback | ✅ Working | Sends to OpenAI-compatible Groq transcription fallback |
+| Settings screen | ✅ Working | Persists profile avatar picker, Name, Email, Bio, server IP, Groq API key |
+| Sensor display | ✅ Working | Live temperature, humidity, flow rate, TVOC, and total water consumed cards |
 | BLE provisioning | 🚧 In progress | `NativeBleProvisioningService.ts` exists, not wired to setup flow yet |
 | AI Analysis (summary/action items) | ❌ Not started | API stubbed |
-| Privacy & storage panel | ❌ Not started | |
+| Privacy & storage panel | ✅ Working | Local SQLite settings persistence, retention timer settings |
 
 ---
 
