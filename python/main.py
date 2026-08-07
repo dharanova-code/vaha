@@ -45,6 +45,7 @@ FIRST_SILENCE_S    = 3.0
 SECOND_SILENCE_S   = 7.0
 MAX_RECORD_S       = 600
 NO_SPEECH_GIVEUP_S = 7.0
+SILENCE_TIMEOUT_S  = float(os.environ.get("SILENCE_TIMEOUT_S", "10.0"))
 NOTION_TOKEN       = os.environ.get("NOTION_TOKEN","")
 NOTION_DB_ID       = os.environ.get("NOTION_DATABASE_ID","")
 NOTION_SYNC_ENABLED = bool(NOTION_TOKEN and NOTION_DB_ID)
@@ -522,7 +523,6 @@ def record_thought(device):
     
     speech_started = False
     last_speech_time = time.time()
-    SILENCE_TIMEOUT_S = 3.5  # Auto-stop after 3.5s of silence following speech
     
     with audio.MicrophoneStream(device, sample_rate=SAMPLE_RATE, chunk_size=CHUNK_SIZE) as stream:
         while True:
