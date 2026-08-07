@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from "react";
-import { FlatList, StyleSheet, RefreshControl, View, ScrollView, TouchableOpacity, Animated } from "react-native";
+import { FlatList, StyleSheet, RefreshControl, View, ScrollView, TouchableOpacity, Animated, PanResponder } from "react-native";
 import { router } from "expo-router";
 import {
   Screen,
@@ -25,6 +25,41 @@ export default function CapturesScreen() {
   const scrollY = React.useRef(new Animated.Value(0)).current;
   const [contentHeight, setContentHeight] = React.useState(1);
   const [layoutHeight, setLayoutHeight] = React.useState(1);
+
+  const flatListRef = React.useRef<any>(null);
+  const contentHeightRef = React.useRef(1);
+  const layoutHeightRef = React.useRef(1);
+  const currentScrollOffsetRef = React.useRef(0);
+  const scrollStartOffset = React.useRef(0);
+
+  contentHeightRef.current = contentHeight;
+  layoutHeightRef.current = layoutHeight;
+
+  React.useEffect(() => {
+    const id = scrollY.addListener(({ value }) => {
+      currentScrollOffsetRef.current = value;
+    });
+    return () => scrollY.removeListener(id);
+  }, [scrollY]);
+
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        scrollStartOffset.current = currentScrollOffsetRef.current;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        const maxScroll = contentHeightRef.current - layoutHeightRef.current;
+        const trackRange = layoutHeightRef.current - 140;
+        if (maxScroll > 0 && trackRange > 0) {
+          const deltaScroll = (gestureState.dy / trackRange) * maxScroll;
+          const newScroll = Math.max(0, Math.min(scrollStartOffset.current + deltaScroll, maxScroll));
+          flatListRef.current?.scrollToOffset({ offset: newScroll, animated: false });
+        }
+      },
+    })
+  ).current;
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -84,7 +119,11 @@ export default function CapturesScreen() {
     <Screen withMarginThread style={styles.container}>
       {/* Spacious Screen Title & Sort Action */}
       <View style={styles.headerRow}>
-        <Text style={styles.titleText}>My Notes ({totalCount})</Text>
+        <View style={styles.titleContainer}>
+          <Text numberOfLines={1} style={styles.titleText}>
+            My Notes <Text style={styles.countText}>({totalCount})</Text>
+          </Text>
+        </View>
         <TouchableOpacity
           onPress={() => {
             if (sortOrder === "newest") setSortOrder("oldest");
@@ -179,6 +218,7 @@ export default function CapturesScreen() {
       {!isLoading && !isEmpty && (
         <View style={{ flex: 1, flexDirection: "row" }}>
           <Animated.FlatList<CaptureWithTags>
+            ref={flatListRef}
             data={captures}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
@@ -203,6 +243,7 @@ export default function CapturesScreen() {
           {contentHeight > layoutHeight && (
             <View style={styles.scrollTrack}>
               <Animated.View
+                {...panResponder.panHandlers}
                 style={[
                   styles.scrollIndicator,
                   {
@@ -245,11 +286,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.layout.mobileMargin,
     marginBottom: 16,
   },
+  titleContainer: {
+    flex: 1,
+    marginRight: 8,
+  },
   titleText: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: "800",
     color: theme.colors.text.primary,
     letterSpacing: -0.5,
+  },
+  countText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: theme.colors.text.muted,
   },
   headerSortButton: {
     flexDirection: "row",
