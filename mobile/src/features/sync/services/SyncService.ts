@@ -23,7 +23,7 @@ import { Container } from "@core/di/Container";
 import { CaptureRepository } from "../../captures/repositories/CaptureRepository";
 import { SyncRepository } from "../repositories/SyncRepository";
 import { NewCapture } from "@infra/database/schema/captures";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 export type SyncEventListener = (event: SyncEvent) => void;
 
 export type SyncEvent =
