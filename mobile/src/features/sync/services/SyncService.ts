@@ -77,6 +77,12 @@ export class SyncService {
     const metadataByLocalId = new Map<number, DeviceCaptureMetadata>();
 
     for (const metadata of captures) {
+      // 0. Skip empty captures (recorded due to noise or empty device data)
+      if (!metadata.transcript || !metadata.transcript.trim()) {
+        this.logger.warn(`[SYNC] Skipping empty capture ${metadata.transaction_id}`);
+        continue;
+      }
+
       // 1. Check if we already have this capture locally
       const existing = await captureRepo.findByUuid(metadata.transaction_id);
       
