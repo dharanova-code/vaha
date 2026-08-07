@@ -47,7 +47,7 @@ MAX_RECORD_S       = 600
 NO_SPEECH_GIVEUP_S = 7.0
 NOTION_TOKEN       = os.environ.get("NOTION_TOKEN","")
 NOTION_DB_ID       = os.environ.get("NOTION_DATABASE_ID","")
-NOTION_SYNC_ENABLED = False
+NOTION_SYNC_ENABLED = bool(NOTION_TOKEN and NOTION_DB_ID)
 NOTES_FILE         = "/app/notes.txt"
 PIPER_EXE          = "/app/piper/piper"
 PIPER_MODEL        = "/app/models/piper/en_US-lessac-medium.onnx"
@@ -55,15 +55,15 @@ WHISPER_MODEL_DIR  = "/app/models/faster-whisper"
 WHISPER_MODEL_NAME = os.environ.get("WHISPER_MODEL_NAME", "base.en")
 EIM_PATH           = os.environ.get("EIM_PATH", "models/new-marvin.eim")
 STOP_KEYWORD       = os.environ.get("STOP_KEYWORD", "im_done")
-STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.85"))
+STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.88"))
 STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "3"))      # detections needed in window
-STOP_WINDOW        = int(os.environ.get("STOP_WINDOW", "5"))       # sliding window size (frames)
+STOP_WINDOW        = int(os.environ.get("STOP_WINDOW", "6"))       # sliding window size (frames)
 MIC_RATE           = 48000
 PYAUDIO_DEV        = 1  # CS202 mic
 WAKE_THRESHOLD     = float(os.environ.get("WAKE_THRESHOLD", "0.82"))
 WAKE_CONSEC        = int(os.environ.get("WAKE_CONSEC", "2"))
 WAKE_COOLDOWN      = 3.0
-STOP_PHRASES       = ["i'm done","im done","that's all","thats all","that is all"]
+STOP_PHRASES       = ["i'm done","im done","i am done","that's all","thats all","that is all"]
 
 READ_PHRASES       = ["read my notes","read my note","read my thoughts","read back"]
 
@@ -520,6 +520,10 @@ def record_thought(device):
     from collections import deque as _deque
     stop_window: _deque = _deque(maxlen=STOP_WINDOW)
     
+    speech_started = False
+    last_speech_time = time.time()
+    SILENCE_TIMEOUT_S = 3.5  # Auto-stop after 3.5s of silence following speech
+    
     with audio.MicrophoneStream(device, sample_rate=SAMPLE_RATE, chunk_size=CHUNK_SIZE) as stream:
         while True:
             now = time.time()
@@ -532,12 +536,21 @@ def record_thought(device):
             chunk = stream.read()
             collected.append(chunk)
             
+            # Calculate RMS energy of chunk
+            ac = chunk.astype(np.float64) - np.mean(chunk)
+            rms = float(np.sqrt(np.mean(ac**2)))
+            
+            if rms >= RMS_THRESHOLD:
+                speech_started = True
+                last_speech_time = now
+            elif speech_started and (now - last_speech_time > SILENCE_TIMEOUT_S) and (now - start > 3.5):
+                print(f"[info] [record] Silence timeout reached ({SILENCE_TIMEOUT_S}s). Auto-finishing recording.", flush=True)
+                play_chime("stop")
+                break
+            
             # Run Edge Impulse classification if available
             if stop_detector is not None and stop_buf is not None:
                 try:
-                    ac = chunk.astype(np.float64) - np.mean(chunk)
-                    rms = float(np.sqrt(np.mean(ac**2)))
-
                     chunk_f32 = chunk.astype(np.float32)
                     resample_len = int(len(chunk_f32) * MODEL_RATE / SAMPLE_RATE)
                     resampled_chunk = np.interp(
