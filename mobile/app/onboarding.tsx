@@ -11,7 +11,8 @@ import {
   theme,
   Icon,
   Divider,
-  OnboardingHeader
+  OnboardingHeader,
+  Dialog
 } from "../src/design-system";
 import { STORAGE_KEYS } from "../src/core/constants";
 import { appConfig } from "../src/core/config/AppConfig";
@@ -29,8 +30,11 @@ const STEPS = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const mmkv = getStorageService();
+
+  // State
   const [step, setStep] = useState(0);
   const [captureMode, setCaptureMode] = useState<"mobile" | "uno_q">("mobile");
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   
   // Permissions State
   const [micStatus, setMicStatus] = useState<"prompt" | "granted" | "denied">("prompt");
@@ -96,10 +100,7 @@ export default function OnboardingScreen() {
     if (step < STEPS.length - 1) {
       // Step checks
       if (step === 3 && micStatus === "prompt") {
-        Alert.alert("Permissions Recommended", "We recommend enabling microphone access for local voice capture. You can skip if you want.", [
-          { text: "Enable Mic", onPress: requestMicPermission },
-          { text: "Skip for Now", onPress: () => setStep(step + 1) }
-        ]);
+        setShowPermissionDialog(true);
         return;
       }
       setStep(step + 1);
@@ -363,6 +364,22 @@ export default function OnboardingScreen() {
           {step === STEPS.length - 1 ? "Finish" : "Continue"}
         </Button>
       </View>
+
+      <Dialog
+        visible={showPermissionDialog}
+        title="Permissions Recommended"
+        message="We recommend enabling microphone access for local voice capture. You can skip if you want."
+        confirmText="Enable Mic"
+        cancelText="Skip for Now"
+        onConfirm={() => {
+          setShowPermissionDialog(false);
+          requestMicPermission();
+        }}
+        onCancel={() => {
+          setShowPermissionDialog(false);
+          setStep(step + 1);
+        }}
+      />
     </Screen>
   );
 }
