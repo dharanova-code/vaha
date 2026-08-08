@@ -1,31 +1,51 @@
 import { useMemo } from "react";
 import { useCaptureStore } from "../../devices/stores/captureStore";
+import {
+  generate45DaySensorData,
+  calculateTelemetryInsights,
+  DailySensorLog,
+  TelemetryInsights,
+} from "../mock/mockSensorData";
 
-export function useInsightsData() {
+export interface InsightsData {
+  isLoading: boolean;
+  isEmpty: boolean;
+  totalCaptures: number;
+  totalDuration: number;
+  sensorLogs: DailySensorLog[];
+  telemetryInsights: TelemetryInsights;
+}
+
+export function useInsightsData(): InsightsData {
   const { captures, isLoading } = useCaptureStore();
 
-  // Memoize aggregation to prevent recalculation on every render
+  // Load 45-day mock sensor logs
+  const sensorLogs = useMemo(() => {
+    return generate45DaySensorData();
+  }, []);
+
+  // Calculate telemetry insights
+  const telemetryInsights = useMemo(() => {
+    return calculateTelemetryInsights(sensorLogs);
+  }, [sensorLogs]);
+
+  // Aggregate captures info
   const { totalCaptures, totalDuration } = useMemo(() => {
     return {
       totalCaptures: captures.length,
-      // For now, duration isn't natively on the capture, so we use a placeholder 60s
-      totalDuration: captures.length * 60,
+      totalDuration: captures.length * 45, // assume average of 45s per note
     };
   }, [captures]);
 
-  const isEmpty = !isLoading && captures.length === 0;
-
-  // Placeholder for future charts datasets
-  const activityTrendData = useMemo(() => {
-    // Return presentation-ready datasets instead of raw entities
-    return [];
-  }, []);
+  // The screen is never empty now because we always show telemetry logs & sustainability insights
+  const isEmpty = false;
 
   return {
     isLoading,
     isEmpty,
     totalCaptures,
     totalDuration,
-    activityTrendData,
+    sensorLogs,
+    telemetryInsights,
   };
 }
