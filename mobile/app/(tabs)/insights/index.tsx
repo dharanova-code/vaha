@@ -4,10 +4,8 @@ import Svg, { Path, Line, Circle, Defs, LinearGradient, Stop } from "react-nativ
 import {
   Screen,
   SectionHeader,
-  SensorCard,
   Text,
   Card,
-  Switch,
   colors,
   spacing,
   radius,
@@ -17,7 +15,8 @@ import { useInsightsData } from "../../../src/features/insights/hooks/useInsight
 import { DailySensorLog } from "../../../src/features/insights/mock/mockSensorData";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const CHART_WIDTH = SCREEN_WIDTH - 48; // padding margin
+const CONTAINER_PADDING = 24;
+const CHART_WIDTH = SCREEN_WIDTH - (CONTAINER_PADDING * 2) - 40; // width subtracting screen padding and y-axis labels
 const CHART_HEIGHT = 160;
 
 interface Point {
@@ -35,7 +34,7 @@ export default function InsightsScreen() {
 
   const [timeRange, setTimeRange] = useState<7 | 30 | 45>(7);
   const [envTab, setEnvTab] = useState<"temp_hum" | "tvoc">("temp_hum");
-  const [isKidsMode, setIsKidsMode] = useState<boolean>(false);
+  const [mode, setMode] = useState<"ai" | "kids">("ai");
 
   // Filter sensor logs based on selected range
   const filteredLogs = useMemo(() => {
@@ -54,18 +53,26 @@ export default function InsightsScreen() {
     };
   }, [filteredLogs]);
 
-  // SVG Chart rendering helper for Water Consumption
-  const waterChartPath = useMemo<{ line: string; area: string; points: Point[] }>(() => {
-    if (filteredLogs.length === 0) return { line: "", area: "", points: [] };
+  // Today's stats compared to average
+  const isHighWater = telemetryInsights.waterDeviationPercentage > 30;
 
+  // Max and min calculation for Y-Axis labels in Water chart
+  const waterBounds = useMemo(() => {
+    if (filteredLogs.length === 0) return { min: 0, max: 200, range: 200 };
     const values = filteredLogs.map((log) => log.waterConsumedLiters);
-    const minVal = Math.min(...values) * 0.9;
-    const maxVal = Math.max(...values) * 1.1;
-    const valRange = maxVal - minVal || 1;
+    const min = Math.min(...values) * 0.9;
+    const max = Math.max(...values) * 1.1;
+    return { min, max, range: max - min || 1 };
+  }, [filteredLogs]);
 
+  // Water Chart points and path helper
+  const waterChart = useMemo(() => {
+    if (filteredLogs.length === 0) return { linePath: "", areaPath: "", points: [] };
+
+    const { min, range } = waterBounds;
     const points = filteredLogs.map((log, index) => {
       const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
-      const y = CHART_HEIGHT - ((log.waterConsumedLiters - minVal) / valRange) * (CHART_HEIGHT - 40) - 20;
+      const y = CHART_HEIGHT - ((log.waterConsumedLiters - min) / range) * (CHART_HEIGHT - 40) - 20;
       return { x, y };
     });
 
@@ -76,79 +83,87 @@ export default function InsightsScreen() {
 
     const areaPath = `${linePath} L ${points[points.length - 1]!.x} ${CHART_HEIGHT} L ${points[0]!.x} ${CHART_HEIGHT} Z`;
 
-    return { line: linePath, area: areaPath, points };
-  }, [filteredLogs]);
+    return { linePath, areaPath, points };
+  }, [filteredLogs, waterBounds]);
 
-  // SVG Chart rendering helper for Environmental log
-  const envChartPath = useMemo<{ line1: string; line2?: string; area1?: string; points1: Point[]; points2?: Point[] }>(() => {
-    if (filteredLogs.length === 0) return { line1: "", points1: [] };
-
+  // Environmental bounds (Temp/Hum/TVOC)
+  const envBounds = useMemo(() => {
+    if (filteredLogs.length === 0) return { min1: 0, max1: 100, min2: 0, max2: 100 };
+    
     if (envTab === "temp_hum") {
       const temps = filteredLogs.map((log) => log.averageTemperature);
       const hums = filteredLogs.map((log) => log.averageHumidity);
-
-      const minTemp = Math.min(...temps) * 0.9;
-      const maxTemp = Math.max(...temps) * 1.1;
-      const tempRange = maxTemp - minTemp || 1;
-
-      const minHum = Math.min(...hums) * 0.9;
-      const maxHum = Math.max(...hums) * 1.1;
-      const humRange = maxHum - minHum || 1;
-
-      const tempPoints = temps.map((val, index) => {
-        const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
-        const y = CHART_HEIGHT - ((val - minTemp) / tempRange) * (CHART_HEIGHT - 40) - 20;
-        return { x, y };
-      });
-
-      const humPoints = hums.map((val, index) => {
-        const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
-        const y = CHART_HEIGHT - ((val - minHum) / humRange) * (CHART_HEIGHT - 40) - 20;
-        return { x, y };
-      });
-
-      let line1 = `M ${tempPoints[0]!.x} ${tempPoints[0]!.y}`;
-      let line2 = `M ${humPoints[0]!.x} ${humPoints[0]!.y}`;
-
-      for (let i = 1; i < filteredLogs.length; i++) {
-        line1 += ` L ${tempPoints[i]!.x} ${tempPoints[i]!.y}`;
-        line2 += ` L ${humPoints[i]!.x} ${humPoints[i]!.y}`;
-      }
-
-      return { line1, line2, points1: tempPoints, points2: humPoints };
+      return {
+        min1: Math.min(...temps) * 0.9,
+        max1: Math.max(...temps) * 1.1,
+        min2: Math.min(...hums) * 0.9,
+        max2: Math.max(...hums) * 1.1,
+      };
     } else {
       const tvocs = filteredLogs.map((log) => log.averageTVOC);
-      const minVoc = Math.min(...tvocs) * 0.9;
-      const maxVoc = Math.max(...tvocs) * 1.1;
-      const vocRange = maxVoc - minVoc || 1;
-
-      const points = tvocs.map((val, index) => {
-        const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
-        const y = CHART_HEIGHT - ((val - minVoc) / vocRange) * (CHART_HEIGHT - 40) - 20;
-        return { x, y };
-      });
-
-      let line1 = `M ${points[0]!.x} ${points[0]!.y}`;
-      for (let i = 1; i < filteredLogs.length; i++) {
-        line1 += ` L ${points[i]!.x} ${points[i]!.y}`;
-      }
-
-      const area1 = `${line1} L ${points[points.length - 1]!.x} ${CHART_HEIGHT} L ${points[0]!.x} ${CHART_HEIGHT} Z`;
-
-      return { line1, area1, points1: points };
+      return {
+        min1: Math.min(...tvocs) * 0.9,
+        max1: Math.max(...tvocs) * 1.1,
+      };
     }
   }, [filteredLogs, envTab]);
 
-  // Today's stats compared to average
-  const isHighWater = telemetryInsights.waterDeviationPercentage > 30;
+  // Environmental Chart points and path helper
+  const envChart = useMemo(() => {
+    if (filteredLogs.length === 0) return { line1: "", line2: "", area1: "" };
 
-  // Custom Kid-friendly narrative summary
+    const { min1, max1, min2, max2 } = envBounds;
+    const range1 = max1 - min1 || 1;
+
+    if (envTab === "temp_hum" && min2 !== undefined && max2 !== undefined) {
+      const range2 = max2 - min2 || 1;
+
+      const points1 = filteredLogs.map((log, index) => {
+        const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
+        const y = CHART_HEIGHT - ((log.averageTemperature - min1) / range1) * (CHART_HEIGHT - 40) - 20;
+        return { x, y };
+      });
+
+      const points2 = filteredLogs.map((log, index) => {
+        const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
+        const y = CHART_HEIGHT - ((log.averageHumidity - min2) / range2) * (CHART_HEIGHT - 40) - 20;
+        return { x, y };
+      });
+
+      let line1 = `M ${points1[0]!.x} ${points1[0]!.y}`;
+      let line2 = `M ${points2[0]!.x} ${points2[0]!.y}`;
+
+      for (let i = 1; i < filteredLogs.length; i++) {
+        line1 += ` L ${points1[i]!.x} ${points1[i]!.y}`;
+        line2 += ` L ${points2[i]!.x} ${points2[i]!.y}`;
+      }
+
+      return { line1, line2 };
+    } else {
+      const points1 = filteredLogs.map((log, index) => {
+        const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
+        const y = CHART_HEIGHT - ((log.averageTVOC - min1) / range1) * (CHART_HEIGHT - 40) - 20;
+        return { x, y };
+      });
+
+      let line1 = `M ${points1[0]!.x} ${points1[0]!.y}`;
+      for (let i = 1; i < filteredLogs.length; i++) {
+        line1 += ` L ${points1[i]!.x} ${points1[i]!.y}`;
+      }
+
+      const area1 = `${line1} L ${points1[points1.length - 1]!.x} ${CHART_HEIGHT} L ${points1[0]!.x} ${CHART_HEIGHT} Z`;
+
+      return { line1, area1 };
+    }
+  }, [filteredLogs, envTab, envBounds]);
+
+  // Kids Sustainability Story config
   const kidsStory = useMemo(() => {
     if (isHighWater) {
       return {
         title: "Oh No! A Big Splash Day! 🚨",
         message: `We used ${lastLog.waterConsumedLiters}L of water today—that's enough to fill 4 giant swimming pools! If we waste it, the little ducklings in the forest pond won't have enough water to swim, and the wise frogs will get thirsty. Let's make sure the taps are turned off tight! 🦆💚`,
-        color: "#FEF3C7", // amber warning tint
+        color: "#FEF3C7",
         borderColor: "#F59E0B",
         emoji: "🦆",
       };
@@ -156,7 +171,7 @@ export default function InsightsScreen() {
       return {
         title: "Yay! You Saved The Frogs! 🐸🎉",
         message: `Superstar! We used only ${lastLog.waterConsumedLiters}L of water today. Because you kept your water use low, the Blue Forest River is flowing happily, keeping 12 little frogs safe and cool! You are an environmental hero! 🐸💎`,
-        color: "#ECFDF5", // emerald tint
+        color: "#ECFDF5",
         borderColor: "#10B981",
         emoji: "🐸",
       };
@@ -165,7 +180,7 @@ export default function InsightsScreen() {
 
   return (
     <Screen scrollable style={styles.container}>
-      {/* Time Range Selector */}
+      {/* 1. Time Range Selector Header */}
       <View style={styles.rangeSelectorContainer}>
         <View style={styles.segmentedControl}>
           {([7, 30, 45] as const).map((range) => (
@@ -191,39 +206,82 @@ export default function InsightsScreen() {
         </View>
       </View>
 
-      {/* Main Metrics summary */}
+      {/* 2. Top Summary Widget Grid */}
       <View style={styles.statsGrid}>
-        <SensorCard
-          label="DAILY AVERAGE"
-          value={telemetryInsights.averageWaterLiters.toString()}
-          unit="L"
-          status="normal"
-        />
-        <SensorCard
-          label="MAX RECORDED"
-          value={telemetryInsights.maxWaterLiters.toString()}
-          unit="L"
-          status={isHighWater ? "warning" : "normal"}
-        />
-      </View>
-
-      {/* Kids Mode Toggle */}
-      <Card style={styles.kidsModeCard}>
-        <View style={styles.kidsModeHeader}>
-          <View>
-            <Text variant="headline-lg" style={styles.kidsModeTitle}>
-              Kids Awareness Mode
+        <Card style={styles.statsCard}>
+          <Text variant="meta-sm" style={styles.statsCardLabel}>
+            AVERAGE DAILY
+          </Text>
+          <View style={styles.statsCardValueRow}>
+            <Text variant="headline-lg" style={styles.statsCardValue}>
+              {telemetryInsights.averageWaterLiters}
             </Text>
-            <Text variant="label-sm" style={styles.kidsModeSubtitle}>
-              Translate water stats into stories for kids
+            <Text variant="label-sm" style={styles.statsCardUnit}>
+              L/day
             </Text>
           </View>
-          <Switch value={isKidsMode} onValueChange={setIsKidsMode} />
-        </View>
-      </Card>
+        </Card>
 
-      {/* AI Advisor / Kids Narrative Card */}
-      {!isKidsMode ? (
+        <Card style={[styles.statsCard, isHighWater && styles.statsCardWarning]}>
+          <Text variant="meta-sm" style={styles.statsCardLabel}>
+            MAX CONSUMED
+          </Text>
+          <View style={styles.statsCardValueRow}>
+            <Text
+              variant="headline-lg"
+              style={[
+                styles.statsCardValue,
+                isHighWater && { color: colors.semantic.warning },
+              ]}
+            >
+              {telemetryInsights.maxWaterLiters}
+            </Text>
+            <Text variant="label-sm" style={styles.statsCardUnit}>
+              L
+            </Text>
+          </View>
+        </Card>
+      </View>
+
+      {/* 3. Sustainable Insights Mode Selector */}
+      <View style={styles.modeContainer}>
+        <TouchableOpacity
+          style={[styles.modeTabButton, mode === "ai" && styles.modeTabButtonActive]}
+          onPress={() => setMode("ai")}
+        >
+          <Icon
+            name="activity"
+            size={16}
+            color={mode === "ai" ? "#FAF8F5" : colors.text.muted}
+          />
+          <Text
+            variant="label-sm"
+            style={[styles.modeTabText, mode === "ai" && styles.modeTabTextActive]}
+          >
+            AI Advisor
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.modeTabButton, mode === "kids" && styles.modeTabButtonActive]}
+          onPress={() => setMode("kids")}
+        >
+          <Icon
+            name="smile"
+            size={16}
+            color={mode === "kids" ? "#FAF8F5" : colors.text.muted}
+          />
+          <Text
+            variant="label-sm"
+            style={[styles.modeTabText, mode === "kids" && styles.modeTabTextActive]}
+          >
+            Kids Story Mode
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 4. Advisor / Stories Detail Card */}
+      {mode === "ai" ? (
         <Card
           style={[
             styles.advisorCard,
@@ -231,21 +289,26 @@ export default function InsightsScreen() {
           ]}
         >
           <View style={styles.advisorHeader}>
-            <View style={[styles.iconBadge, isHighWater ? styles.badgeWarning : styles.badgeNormal]}>
+            <View
+              style={[
+                styles.iconBadge,
+                isHighWater ? styles.badgeWarning : styles.badgeNormal,
+              ]}
+            >
               <Icon
                 name={isHighWater ? "alert-circle" : "check-circle"}
-                size={20}
+                size={18}
                 color={isHighWater ? colors.semantic.warning : colors.semantic.success}
               />
             </View>
             <Text variant="headline-lg" style={styles.advisorTitle}>
-              {isHighWater ? "Abnormal Water Usage Alert" : "Water Consumption Stable"}
+              {isHighWater ? "Abnormal Water Usage Detected" : "Water Flow Is Optimal"}
             </Text>
           </View>
           <Text variant="body-md" style={styles.advisorText}>
             {isHighWater
-              ? `Your water usage today is ${telemetryInsights.waterDeviationPercentage}% higher than your 3-week average of ${telemetryInsights.averageWaterLiters}L. This might indicate a leaky faucet or garden irrigation left active.`
-              : `Awesome! Today's consumption (${lastLog.waterConsumedLiters}L) aligns perfectly with your average water usage profile. Clean habits preserved.`}
+              ? `Daily consumption spiked to ${lastLog.waterConsumedLiters}L today—which is ${telemetryInsights.waterDeviationPercentage}% above your normal average of ${telemetryInsights.averageWaterLiters}L. Check for leaky bathroom valves or faucets.`
+              : `Water consumption is stable. Today's usage of ${lastLog.waterConsumedLiters}L aligns perfectly with your average sustainability baseline.`}
           </Text>
         </Card>
       ) : (
@@ -256,7 +319,9 @@ export default function InsightsScreen() {
           ]}
         >
           <View style={styles.kidsStoryHeader}>
-            <Text variant="headline-lg" style={styles.kidsStoryEmoji}>{kidsStory.emoji}</Text>
+            <Text variant="headline-lg" style={styles.kidsStoryEmoji}>
+              {kidsStory.emoji}
+            </Text>
             <Text variant="headline-lg" style={styles.kidsStoryTitle}>
               {kidsStory.title}
             </Text>
@@ -267,178 +332,274 @@ export default function InsightsScreen() {
         </View>
       )}
 
-      {/* Chart 1: Water Consumption */}
+      {/* 5. Chart A: Water Consumption Trends */}
       <SectionHeader title="Water Consumption Trends" />
       <Card style={styles.chartCard}>
         <View style={styles.chartLabelRow}>
-          <Text variant="label-sm" style={styles.chartSubLabel}>Usage (Liters)</Text>
-          <Text variant="label-sm" style={styles.chartPeakLabel}>Peak: {telemetryInsights.maxWaterLiters}L</Text>
+          <Text variant="label-sm" style={styles.chartSubLabel}>
+            Daily Volume (Liters)
+          </Text>
+          <Text variant="label-sm" style={styles.chartPeakLabel}>
+            Peak Today: {lastLog.waterConsumedLiters}L
+          </Text>
         </View>
-        
-        {waterChartPath.line ? (
-          <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-            <Defs>
-              <LinearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor={colors.accent.primary} stopOpacity={0.4} />
-                <Stop offset="100%" stopColor={colors.accent.primary} stopOpacity={0.0} />
-              </LinearGradient>
-            </Defs>
 
-            {/* Zero and Peak reference grid lines */}
-            <Line x1="0" y1="10" x2={CHART_WIDTH} y2="10" stroke={colors.accent.border} strokeWidth="1" strokeDasharray="4 4" />
-            <Line x1="0" y1={CHART_HEIGHT - 10} x2={CHART_WIDTH} y2={CHART_HEIGHT - 10} stroke={colors.accent.border} strokeWidth="1" />
+        <View style={styles.chartWrapper}>
+          {/* Y Axis Labels */}
+          <View style={styles.yAxisLabels}>
+            <Text variant="meta-sm" style={styles.yAxisText}>
+              {Math.round(waterBounds.max)}L
+            </Text>
+            <Text variant="meta-sm" style={styles.yAxisText}>
+              {Math.round((waterBounds.max + waterBounds.min) / 2)}L
+            </Text>
+            <Text variant="meta-sm" style={styles.yAxisText}>
+              {Math.round(waterBounds.min)}L
+            </Text>
+          </View>
 
-            {/* Filled area */}
-            <Path d={waterChartPath.area || ""} fill="url(#waterGrad)" />
+          {/* SVG Canvas */}
+          {waterChart.linePath ? (
+            <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+              <Defs>
+                <LinearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0%" stopColor={colors.accent.primary} stopOpacity={0.35} />
+                  <Stop offset="100%" stopColor={colors.accent.primary} stopOpacity={0.0} />
+                </LinearGradient>
+              </Defs>
 
-            {/* Main Path */}
-            <Path d={waterChartPath.line || ""} fill="none" stroke={colors.accent.primary} strokeWidth="2.5" />
+              {/* Grid Lines */}
+              <Line x1="0" y1="20" x2={CHART_WIDTH} y2="20" stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+              <Line x1="0" y1={CHART_HEIGHT / 2} x2={CHART_WIDTH} y2={CHART_HEIGHT / 2} stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+              <Line x1="0" y1={CHART_HEIGHT - 20} x2={CHART_WIDTH} y2={CHART_HEIGHT - 20} stroke={colors.accent.border} strokeWidth="1" />
 
-            {/* Anomaly markers */}
-            {waterChartPath.points && filteredLogs.map((log, index) => {
-              if (log.isAnomaly) {
-                const pt = waterChartPath.points[index];
-                if (!pt) return null;
-                return (
-                  <Circle
-                    key={index}
-                    cx={pt.x}
-                    cy={pt.y}
-                    r="5"
-                    fill={colors.semantic.warning}
-                    stroke="#FAF8F5"
-                    strokeWidth="1.5"
-                  />
-                );
-              }
-              return null;
-            })}
-          </Svg>
-        ) : null}
+              {/* Area path */}
+              <Path d={waterChart.areaPath} fill="url(#waterGrad)" />
 
-        {/* Date labels */}
+              {/* Main Line path */}
+              <Path d={waterChart.linePath} fill="none" stroke={colors.accent.primary} strokeWidth="2.5" />
+
+              {/* Anomaly Highlight Circles */}
+              {waterChart.points && filteredLogs.map((log, index) => {
+                if (log.isAnomaly) {
+                  const pt = waterChart.points[index];
+                  if (!pt) return null;
+                  return (
+                    <Circle
+                      key={index}
+                      cx={pt.x}
+                      cy={pt.y}
+                      r="6"
+                      fill={colors.semantic.warning}
+                      stroke="#FAF8F5"
+                      strokeWidth="2"
+                    />
+                  );
+                }
+                return null;
+              })}
+            </Svg>
+          ) : null}
+        </View>
+
+        {/* X Axis Labels */}
         <View style={styles.chartXLabels}>
-          <Text variant="meta-sm" style={styles.xAxisText}>{filteredLogs[0]?.date}</Text>
+          <Text variant="meta-sm" style={styles.xAxisText}>
+            {filteredLogs[0]?.date}
+          </Text>
           <Text variant="meta-sm" style={styles.xAxisText}>
             {filteredLogs[Math.floor(filteredLogs.length / 2)]?.date}
           </Text>
-          <Text variant="meta-sm" style={styles.xAxisText}>{lastLog.date}</Text>
+          <Text variant="meta-sm" style={styles.xAxisText}>
+            {lastLog.date}
+          </Text>
         </View>
       </Card>
 
-      {/* Environmental Logs Tab Selectors */}
+      {/* 6. Chart B: Environmental Metrics */}
       <SectionHeader title="Environmental Telemetry" />
       <View style={styles.tabSelectorRow}>
         <TouchableOpacity
           style={[styles.tabButton, envTab === "temp_hum" && styles.tabButtonActive]}
           onPress={() => setEnvTab("temp_hum")}
         >
-          <Text variant="label-sm" style={[styles.tabText, envTab === "temp_hum" && styles.tabTextActive]}>
+          <Text
+            variant="label-sm"
+            style={[styles.tabText, envTab === "temp_hum" && styles.tabTextActive]}
+          >
             Temp & Humidity
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.tabButton, envTab === "tvoc" && styles.tabButtonActive]}
           onPress={() => setEnvTab("tvoc")}
         >
-          <Text variant="label-sm" style={[styles.tabText, envTab === "tvoc" && styles.tabTextActive]}>
+          <Text
+            variant="label-sm"
+            style={[styles.tabText, envTab === "tvoc" && styles.tabTextActive]}
+          >
             Air Quality (TVOC)
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Chart 2: Telemetry Logs */}
       <Card style={styles.chartCard}>
         {envTab === "temp_hum" ? (
           <>
             <View style={styles.chartLegendRow}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendIndicator, { backgroundColor: "#3B82F6" }]} />
-                <Text variant="label-sm" style={styles.chartSubLabel}>Temp (°C)</Text>
+                <Text variant="label-sm" style={styles.chartSubLabel}>
+                  Temp (°C)
+                </Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendIndicator, { backgroundColor: "#10B981" }]} />
-                <Text variant="label-sm" style={styles.chartSubLabel}>Humidity (%)</Text>
+                <Text variant="label-sm" style={styles.chartSubLabel}>
+                  Humidity (%)
+                </Text>
               </View>
             </View>
 
-            {envChartPath.line1 ? (
-              <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-                {/* Reference line */}
-                <Line x1="0" y1={CHART_HEIGHT - 10} x2={CHART_WIDTH} y2={CHART_HEIGHT - 10} stroke={colors.accent.border} strokeWidth="1" />
+            <View style={styles.chartWrapper}>
+              {/* Y Axis Labels */}
+              <View style={styles.yAxisLabels}>
+                <Text variant="meta-sm" style={styles.yAxisText}>
+                  {Math.round(envBounds.max1)}°C
+                </Text>
+                <Text variant="meta-sm" style={styles.yAxisText}>
+                  {Math.round((envBounds.max1 + envBounds.min1) / 2)}°C
+                </Text>
+                <Text variant="meta-sm" style={styles.yAxisText}>
+                  {Math.round(envBounds.min1)}°C
+                </Text>
+              </View>
 
-                {/* Humidity Path (Line 2) */}
-                {envChartPath.line2 && <Path d={envChartPath.line2} fill="none" stroke="#10B981" strokeWidth="2" />}
+              {/* Svg lines */}
+              {envChart.line1 ? (
+                <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+                  {/* Grid Lines */}
+                  <Line x1="0" y1="20" x2={CHART_WIDTH} y2="20" stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+                  <Line x1="0" y1={CHART_HEIGHT / 2} x2={CHART_WIDTH} y2={CHART_HEIGHT / 2} stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+                  <Line x1="0" y1={CHART_HEIGHT - 20} x2={CHART_WIDTH} y2={CHART_HEIGHT - 20} stroke={colors.accent.border} strokeWidth="1" />
 
-                {/* Temperature Path (Line 1) */}
-                <Path d={envChartPath.line1} fill="none" stroke="#3B82F6" strokeWidth="2" />
-              </Svg>
-            ) : null}
+                  {/* Humidity Line */}
+                  {envChart.line2 && <Path d={envChart.line2} fill="none" stroke="#10B981" strokeWidth="2.2" />}
+
+                  {/* Temp Line */}
+                  <Path d={envChart.line1} fill="none" stroke="#3B82F6" strokeWidth="2.2" />
+                </Svg>
+              ) : null}
+            </View>
           </>
         ) : (
           <>
             <View style={styles.chartLabelRow}>
-              <Text variant="label-sm" style={styles.chartSubLabel}>TVOC Level (ppb)</Text>
-              <Text variant="label-sm" style={styles.chartPeakLabel}>Avg: {telemetryInsights.currentTVOC} ppb</Text>
+              <Text variant="label-sm" style={styles.chartSubLabel}>
+                TVOC Level (parts per billion)
+              </Text>
+              <Text variant="label-sm" style={styles.chartPeakLabel}>
+                Current: {telemetryInsights.currentTVOC} ppb
+              </Text>
             </View>
 
-            {envChartPath.line1 ? (
-              <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-                <Defs>
-                  <LinearGradient id="tvocGrad" x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0%" stopColor="#A855F7" stopOpacity={0.3} />
-                    <Stop offset="100%" stopColor="#A855F7" stopOpacity={0.0} />
-                  </LinearGradient>
-                </Defs>
+            <View style={styles.chartWrapper}>
+              {/* Y Axis Labels */}
+              <View style={styles.yAxisLabels}>
+                <Text variant="meta-sm" style={styles.yAxisText}>
+                  {Math.round(envBounds.max1)} ppb
+                </Text>
+                <Text variant="meta-sm" style={styles.yAxisText}>
+                  {Math.round((envBounds.max1 + envBounds.min1) / 2)} ppb
+                </Text>
+                <Text variant="meta-sm" style={styles.yAxisText}>
+                  {Math.round(envBounds.min1)} ppb
+                </Text>
+              </View>
 
-                {/* Reference grid line */}
-                <Line x1="0" y1={CHART_HEIGHT - 10} x2={CHART_WIDTH} y2={CHART_HEIGHT - 10} stroke={colors.accent.border} strokeWidth="1" />
+              {/* Svg area */}
+              {envChart.line1 ? (
+                <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+                  <Defs>
+                    <LinearGradient id="tvocGrad" x1="0" y1="0" x2="0" y2="1">
+                      <Stop offset="0%" stopColor="#A855F7" stopOpacity={0.3} />
+                      <Stop offset="100%" stopColor="#A855F7" stopOpacity={0.0} />
+                    </LinearGradient>
+                  </Defs>
 
-                {/* Filled Area */}
-                {envChartPath.area1 && <Path d={envChartPath.area1} fill="url(#tvocGrad)" />}
+                  {/* Grid Lines */}
+                  <Line x1="0" y1="20" x2={CHART_WIDTH} y2="20" stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+                  <Line x1="0" y1={CHART_HEIGHT / 2} x2={CHART_WIDTH} y2={CHART_HEIGHT / 2} stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+                  <Line x1="0" y1={CHART_HEIGHT - 20} x2={CHART_WIDTH} y2={CHART_HEIGHT - 20} stroke={colors.accent.border} strokeWidth="1" />
 
-                {/* Path */}
-                <Path d={envChartPath.line1 || ""} fill="none" stroke="#A855F7" strokeWidth="2.5" />
-              </Svg>
-            ) : null}
+                  {envChart.area1 && <Path d={envChart.area1} fill="url(#tvocGrad)" />}
+                  <Path d={envChart.line1} fill="none" stroke="#A855F7" strokeWidth="2.2" />
+                </Svg>
+              ) : null}
+            </View>
           </>
         )}
 
         <View style={styles.chartXLabels}>
-          <Text variant="meta-sm" style={styles.xAxisText}>{filteredLogs[0]?.date}</Text>
+          <Text variant="meta-sm" style={styles.xAxisText}>
+            {filteredLogs[0]?.date}
+          </Text>
           <Text variant="meta-sm" style={styles.xAxisText}>
             {filteredLogs[Math.floor(filteredLogs.length / 2)]?.date}
           </Text>
-          <Text variant="meta-sm" style={styles.xAxisText}>{lastLog.date}</Text>
+          <Text variant="meta-sm" style={styles.xAxisText}>
+            {lastLog.date}
+          </Text>
         </View>
       </Card>
 
-      {/* Arduino Uno Q TinyML monitor Widget */}
+      {/* 7. TinyML Execution Status Widget */}
       <SectionHeader title="Uno Q TinyML AI Engine" />
       <Card style={styles.tinymlCard}>
         <View style={styles.tinymlHeader}>
-          <Icon name="cpu" size={24} color={colors.accent.primary} />
+          <Icon name="cpu" size={20} color={colors.accent.primary} />
           <Text variant="headline-lg" style={styles.tinymlTitle}>
             On-Device TinyML Execution Status
           </Text>
         </View>
-        
-        <View style={styles.tinymlGrid}>
-          <View style={styles.tinymlGridItem}>
-            <Text variant="label-sm" style={styles.tinymlGridLabel}>VOICE MODEL</Text>
-            <Text variant="body-md" style={styles.tinymlGridValue}>Marvin Core v1.0</Text>
+
+        <View style={styles.tinymlRow}>
+          <View style={styles.tinymlRowLeft}>
+            <View style={styles.activeDot} />
+            <Text variant="label-sm" style={styles.tinymlStatus}>
+              Wake word listener active
+            </Text>
           </View>
-          <View style={styles.tinymlGridItem}>
-            <Text variant="label-sm" style={styles.tinymlGridLabel}>INFERENCE LATENCY</Text>
-            <Text variant="body-md" style={styles.tinymlGridValue}>84 ms</Text>
+          <Text variant="meta-sm" style={styles.tinymlLatency}>
+            Latency: 84ms
+          </Text>
+        </View>
+
+        {/* TinyML Progress Metrics */}
+        <View style={styles.progressRow}>
+          <View style={styles.progressBarWrapper}>
+            <Text variant="meta-sm" style={styles.progressLabel}>
+              SRAM UTILIZATION
+            </Text>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: "92%", backgroundColor: colors.accent.primary }]} />
+            </View>
+            <Text variant="meta-sm" style={styles.progressPercent}>
+              92% (235 KB / 256 KB)
+            </Text>
           </View>
-          <View style={styles.tinymlGridItem}>
-            <Text variant="label-sm" style={styles.tinymlGridLabel}>UNO Q SRAM USED</Text>
-            <Text variant="body-md" style={styles.tinymlGridValue}>92% (235 KB)</Text>
-          </View>
-          <View style={styles.tinymlGridItem}>
-            <Text variant="label-sm" style={styles.tinymlGridLabel}>WAKE ENGINE STATE</Text>
-            <Text variant="body-md" style={[styles.tinymlGridValue, { color: colors.semantic.success }]}>Active / Listening</Text>
+
+          <View style={styles.progressBarWrapper}>
+            <Text variant="meta-sm" style={styles.progressLabel}>
+              FLASH STORAGE USED
+            </Text>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: "74%", backgroundColor: "#4B5563" }]} />
+            </View>
+            <Text variant="meta-sm" style={styles.progressPercent}>
+              74% (384 KB / 512 KB)
+            </Text>
           </View>
         </View>
       </Card>
@@ -450,8 +611,9 @@ export default function InsightsScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingHorizontal: CONTAINER_PADDING,
+    paddingTop: 24,
+    paddingBottom: 48,
   },
   rangeSelectorContainer: {
     alignItems: "center",
@@ -460,7 +622,7 @@ const styles = StyleSheet.create({
   segmentedControl: {
     flexDirection: "row",
     backgroundColor: colors.background.secondary,
-    borderRadius: radius.medium,
+    borderRadius: 12,
     padding: 4,
     width: "100%",
   },
@@ -468,52 +630,94 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     alignItems: "center",
-    borderRadius: radius.small,
+    borderRadius: 8,
   },
   segmentButtonActive: {
     backgroundColor: "#FAF8F5",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
+    elevation: 3,
+    shadowColor: "#1B3629",
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
   },
   segmentText: {
     fontWeight: "600",
     color: colors.text.muted,
   },
   segmentTextActive: {
-    color: colors.text.primary,
+    color: colors.accent.primary,
   },
   statsGrid: {
     flexDirection: "row",
     gap: 12,
     marginBottom: 20,
   },
-  kidsModeCard: {
+  statsCard: {
+    flex: 1,
     padding: 16,
-    marginBottom: 20,
+    borderRadius: 16,
     backgroundColor: colors.background.secondary,
     borderWidth: 1,
     borderColor: colors.accent.border,
   },
-  kidsModeHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  statsCardWarning: {
+    borderColor: colors.semantic.warning,
   },
-  kidsModeTitle: {
-    color: colors.text.primary,
-    fontWeight: "700",
-  },
-  kidsModeSubtitle: {
+  statsCardLabel: {
     color: colors.text.muted,
-    marginTop: 2,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  statsCardValueRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 4,
+  },
+  statsCardValue: {
+    color: colors.text.primary,
+    fontSize: 28,
+    fontWeight: "800",
+  },
+  statsCardUnit: {
+    color: colors.text.muted,
+    fontWeight: "600",
+  },
+  modeContainer: {
+    flexDirection: "row",
+    backgroundColor: colors.background.secondary,
+    borderRadius: 16,
+    padding: 6,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.accent.border,
+  },
+  modeTabButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    gap: 8,
+    borderRadius: 12,
+  },
+  modeTabButtonActive: {
+    backgroundColor: colors.text.primary,
+  },
+  modeTabText: {
+    color: colors.text.muted,
+    fontWeight: "600",
+  },
+  modeTabTextActive: {
+    color: "#FAF8F5",
   },
   advisorCard: {
     padding: 16,
+    borderRadius: 16,
     marginBottom: 24,
     borderLeftWidth: 4,
+    borderWidth: 1,
+    borderColor: colors.accent.border,
   },
   advisorWarning: {
     borderColor: colors.semantic.warning,
@@ -528,9 +732,9 @@ const styles = StyleSheet.create({
     gap: spacing.space2,
   },
   iconBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -550,7 +754,7 @@ const styles = StyleSheet.create({
   },
   kidsStoryCard: {
     padding: 16,
-    borderRadius: radius.medium,
+    borderRadius: 16,
     borderWidth: 2,
     borderStyle: "dashed",
     marginBottom: 24,
@@ -575,6 +779,7 @@ const styles = StyleSheet.create({
   },
   chartCard: {
     padding: 16,
+    borderRadius: 16,
     marginBottom: 24,
     borderColor: colors.accent.border,
     borderWidth: 1,
@@ -607,11 +812,28 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontWeight: "700",
   },
+  chartWrapper: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  yAxisLabels: {
+    width: 40,
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    paddingRight: 8,
+    paddingVertical: 18,
+  },
+  yAxisText: {
+    color: colors.text.muted,
+    fontWeight: "600",
+    fontSize: 10,
+  },
   chartXLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 8,
-    paddingHorizontal: 4,
+    paddingLeft: 40, // offset for y-axis labels
+    paddingRight: 4,
   },
   xAxisText: {
     color: colors.text.muted,
@@ -625,7 +847,7 @@ const styles = StyleSheet.create({
   tabButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: radius.medium,
+    borderRadius: 12,
     backgroundColor: colors.background.secondary,
     borderWidth: 1,
     borderColor: colors.accent.border,
@@ -645,6 +867,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderColor: colors.accent.border,
     borderWidth: 1,
+    borderRadius: 16,
     marginBottom: 32,
   },
   tinymlHeader: {
@@ -657,23 +880,65 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text.primary,
   },
-  tinymlGrid: {
+  tinymlRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    rowGap: 16,
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.background.primary,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.accent.border,
+    marginBottom: 16,
   },
-  tinymlGridItem: {
-    width: "50%",
+  tinymlRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
-  tinymlGridLabel: {
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.semantic.success,
+  },
+  tinymlStatus: {
+    color: colors.text.primary,
+    fontWeight: "600",
+  },
+  tinymlLatency: {
+    color: colors.text.muted,
+    fontWeight: "700",
+  },
+  progressRow: {
+    gap: 16,
+  },
+  progressBarWrapper: {
+    width: "100%",
+  },
+  progressLabel: {
     color: colors.text.muted,
     fontWeight: "700",
     letterSpacing: 0.5,
+    marginBottom: 6,
   },
-  tinymlGridValue: {
-    fontWeight: "700",
-    color: colors.text.primary,
-    marginTop: 2,
+  progressTrack: {
+    height: 8,
+    backgroundColor: colors.background.secondary,
+    borderRadius: 4,
+    overflow: "hidden",
+    borderWidth: 0.5,
+    borderColor: colors.accent.border,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  progressPercent: {
+    color: colors.text.muted,
+    fontWeight: "600",
+    marginTop: 4,
+    textAlign: "right",
   },
   bottomSpacer: {
     height: 48,
