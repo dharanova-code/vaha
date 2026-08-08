@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { StyleSheet, View, TouchableOpacity, Dimensions } from "react-native";
+import { StyleSheet, View, TouchableOpacity, Dimensions, ScrollView, Modal, FlatList, GestureResponderEvent, LayoutChangeEvent } from "react-native";
 import Svg, { Path, Line, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import {
   Screen,
@@ -12,11 +12,10 @@ import {
   Icon,
 } from "../../../src/design-system";
 import { useInsightsData } from "../../../src/features/insights/hooks/useInsightsData";
-import { DailySensorLog } from "../../../src/features/insights/mock/mockSensorData";
+import { DailySensorLog, HourlySensorLog } from "../../../src/features/insights/mock/mockSensorData";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const CONTAINER_PADDING = 24;
-const CHART_WIDTH = SCREEN_WIDTH - (CONTAINER_PADDING * 2) - 40; // width subtracting screen padding and y-axis labels
 const CHART_HEIGHT = 160;
 
 interface Point {
@@ -26,20 +25,42 @@ interface Point {
 
 export default function InsightsScreen() {
   const {
-    totalCaptures,
-    totalDuration,
     sensorLogs,
+    hourlyLogs,
     telemetryInsights,
   } = useInsightsData();
 
-  const [timeRange, setTimeRange] = useState<7 | 30 | 45>(7);
+  // Presets: "today", 7 (days), 30 (days), "custom"
+  const [timeRange, setTimeRange] = useState<"today" | 7 | 30 | "custom">("today");
   const [envTab, setEnvTab] = useState<"temp_hum" | "tvoc">("temp_hum");
   const [mode, setMode] = useState<"ai" | "kids">("ai");
 
-  // Filter sensor logs based on selected range
-  const filteredLogs = useMemo(() => {
+  // Dynamic layout measurement to prevent graph box overflow on any mobile screen size
+  const [chartWidth, setChartWidth] = useState(SCREEN_WIDTH - CONTAINER_PADDING * 2 - 80);
+
+  // Custom date selection state
+  const [customStartDate, setCustomStartDate] = useState<string>(sensorLogs[0]?.date || "Jul 01");
+  const [customEndDate, setCustomEndDate] = useState<string>(sensorLogs[sensorLogs.length - 1]?.date || "Aug 14");
+  
+  const [isSelectingStartDate, setIsSelectingStartDate] = useState(false);
+  const [isSelectingEndDate, setIsSelectingEndDate] = useState(false);
+
+  // Touch tracking state for interactive graph scrubbing
+  const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
+
+  // Filter daily sensor logs based on selected range/custom dates
+  const filteredLogs = useMemo<DailySensorLog[]>(() => {
+    if (timeRange === "today") return [];
+    if (timeRange === "custom") {
+      const startIndex = sensorLogs.findIndex((log) => log.date === customStartDate);
+      const endIndex = sensorLogs.findIndex((log) => log.date === customEndDate);
+      if (startIndex !== -1 && endIndex !== -1 && startIndex <= endIndex) {
+        return sensorLogs.slice(startIndex, endIndex + 1);
+      }
+      return sensorLogs;
+    }
     return sensorLogs.slice(-timeRange);
-  }, [sensorLogs, timeRange]);
+  }, [sensorLogs, timeRange, customStartDate, customEndDate]);
 
   const lastLog = useMemo<DailySensorLog>(() => {
     return filteredLogs[filteredLogs.length - 1] || {
@@ -58,21 +79,29 @@ export default function InsightsScreen() {
 
   // Max and min calculation for Y-Axis labels in Water chart
   const waterBounds = useMemo(() => {
+    if (timeRange === "today") {
+      const values = hourlyLogs.map((log) => log.waterConsumedLiters);
+      const min = Math.min(...values) * 0.9;
+      const max = Math.max(...values) * 1.1;
+      return { min, max, range: max - min || 1 };
+    }
     if (filteredLogs.length === 0) return { min: 0, max: 200, range: 200 };
     const values = filteredLogs.map((log) => log.waterConsumedLiters);
     const min = Math.min(...values) * 0.9;
     const max = Math.max(...values) * 1.1;
     return { min, max, range: max - min || 1 };
-  }, [filteredLogs]);
+  }, [filteredLogs, hourlyLogs, timeRange]);
 
   // Water Chart points and path helper
   const waterChart = useMemo(() => {
-    if (filteredLogs.length === 0) return { linePath: "", areaPath: "", points: [] };
+    const list = timeRange === "today" ? hourlyLogs : filteredLogs;
+    if (list.length === 0) return { linePath: "", areaPath: "", points: [] };
 
     const { min, range } = waterBounds;
-    const points = filteredLogs.map((log, index) => {
-      const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
-      const y = CHART_HEIGHT - ((log.waterConsumedLiters - min) / range) * (CHART_HEIGHT - 40) - 20;
+    const points = list.map((log, index) => {
+      const x = (index / (list.length - 1)) * chartWidth;
+      const val = timeRange === "today" ? (log as HourlySensorLog).waterConsumedLiters : (log as DailySensorLog).waterConsumedLiters;
+      const y = CHART_HEIGHT - ((val - min) / range) * (CHART_HEIGHT - 40) - 20;
       return { x, y };
     });
 
@@ -84,15 +113,16 @@ export default function InsightsScreen() {
     const areaPath = `${linePath} L ${points[points.length - 1]!.x} ${CHART_HEIGHT} L ${points[0]!.x} ${CHART_HEIGHT} Z`;
 
     return { linePath, areaPath, points };
-  }, [filteredLogs, waterBounds]);
+  }, [filteredLogs, hourlyLogs, timeRange, waterBounds, chartWidth]);
 
   // Environmental bounds (Temp/Hum/TVOC)
   const envBounds = useMemo(() => {
-    if (filteredLogs.length === 0) return { min1: 0, max1: 100, min2: 0, max2: 100 };
-    
+    const list = timeRange === "today" ? hourlyLogs : filteredLogs;
+    if (list.length === 0) return { min1: 0, max1: 100, min2: 0, max2: 100 };
+
     if (envTab === "temp_hum") {
-      const temps = filteredLogs.map((log) => log.averageTemperature);
-      const hums = filteredLogs.map((log) => log.averageHumidity);
+      const temps = list.map((log) => (timeRange === "today" ? (log as HourlySensorLog).temperature : (log as DailySensorLog).averageTemperature));
+      const hums = list.map((log) => (timeRange === "today" ? (log as HourlySensorLog).humidity : (log as DailySensorLog).averageHumidity));
       return {
         min1: Math.min(...temps) * 0.9,
         max1: Math.max(...temps) * 1.1,
@@ -100,17 +130,18 @@ export default function InsightsScreen() {
         max2: Math.max(...hums) * 1.1,
       };
     } else {
-      const tvocs = filteredLogs.map((log) => log.averageTVOC);
+      const tvocs = list.map((log) => (timeRange === "today" ? (log as HourlySensorLog).tvoc : (log as DailySensorLog).averageTVOC));
       return {
         min1: Math.min(...tvocs) * 0.9,
         max1: Math.max(...tvocs) * 1.1,
       };
     }
-  }, [filteredLogs, envTab]);
+  }, [filteredLogs, hourlyLogs, timeRange, envTab]);
 
   // Environmental Chart points and path helper
   const envChart = useMemo(() => {
-    if (filteredLogs.length === 0) return { line1: "", line2: "", area1: "" };
+    const list = timeRange === "today" ? hourlyLogs : filteredLogs;
+    if (list.length === 0) return { line1: "", line2: "", area1: "", points1: [], points2: [] };
 
     const { min1, max1, min2, max2 } = envBounds;
     const range1 = max1 - min1 || 1;
@@ -118,51 +149,56 @@ export default function InsightsScreen() {
     if (envTab === "temp_hum" && min2 !== undefined && max2 !== undefined) {
       const range2 = max2 - min2 || 1;
 
-      const points1 = filteredLogs.map((log, index) => {
-        const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
-        const y = CHART_HEIGHT - ((log.averageTemperature - min1) / range1) * (CHART_HEIGHT - 40) - 20;
+      const points1 = list.map((log, index) => {
+        const x = (index / (list.length - 1)) * chartWidth;
+        const val = timeRange === "today" ? (log as HourlySensorLog).temperature : (log as DailySensorLog).averageTemperature;
+        const y = CHART_HEIGHT - ((val - min1) / range1) * (CHART_HEIGHT - 40) - 20;
         return { x, y };
       });
 
-      const points2 = filteredLogs.map((log, index) => {
-        const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
-        const y = CHART_HEIGHT - ((log.averageHumidity - min2) / range2) * (CHART_HEIGHT - 40) - 20;
+      const points2 = list.map((log, index) => {
+        const x = (index / (list.length - 1)) * chartWidth;
+        const val = timeRange === "today" ? (log as HourlySensorLog).humidity : (log as DailySensorLog).averageHumidity;
+        const y = CHART_HEIGHT - ((val - min2) / range2) * (CHART_HEIGHT - 40) - 20;
         return { x, y };
       });
 
       let line1 = `M ${points1[0]!.x} ${points1[0]!.y}`;
       let line2 = `M ${points2[0]!.x} ${points2[0]!.y}`;
 
-      for (let i = 1; i < filteredLogs.length; i++) {
+      for (let i = 1; i < list.length; i++) {
         line1 += ` L ${points1[i]!.x} ${points1[i]!.y}`;
         line2 += ` L ${points2[i]!.x} ${points2[i]!.y}`;
       }
 
-      return { line1, line2 };
+      return { line1, line2, points1, points2 };
     } else {
-      const points1 = filteredLogs.map((log, index) => {
-        const x = (index / (filteredLogs.length - 1)) * CHART_WIDTH;
-        const y = CHART_HEIGHT - ((log.averageTVOC - min1) / range1) * (CHART_HEIGHT - 40) - 20;
+      const points1 = list.map((log, index) => {
+        const x = (index / (list.length - 1)) * chartWidth;
+        const val = timeRange === "today" ? (log as HourlySensorLog).tvoc : (log as DailySensorLog).averageTVOC;
+        const y = CHART_HEIGHT - ((val - min1) / range1) * (CHART_HEIGHT - 40) - 20;
         return { x, y };
       });
 
       let line1 = `M ${points1[0]!.x} ${points1[0]!.y}`;
-      for (let i = 1; i < filteredLogs.length; i++) {
+      for (let i = 1; i < list.length; i++) {
         line1 += ` L ${points1[i]!.x} ${points1[i]!.y}`;
       }
 
       const area1 = `${line1} L ${points1[points1.length - 1]!.x} ${CHART_HEIGHT} L ${points1[0]!.x} ${CHART_HEIGHT} Z`;
 
-      return { line1, area1 };
+      return { line1, area1, points1 };
     }
-  }, [filteredLogs, envTab, envBounds]);
+  }, [filteredLogs, hourlyLogs, timeRange, envTab, envBounds, chartWidth]);
 
   // Kids Sustainability Story config
   const kidsStory = useMemo(() => {
+    const consumed = timeRange === "today" ? hourlyLogs.reduce((sum, item) => sum + item.waterConsumedLiters, 0) : lastLog.waterConsumedLiters;
+    const value = Math.round(consumed * 10) / 10;
     if (isHighWater) {
       return {
         title: "Oh No! A Big Splash Day! 🚨",
-        message: `We used ${lastLog.waterConsumedLiters}L of water today—that's enough to fill 4 giant swimming pools! If we waste it, the little ducklings in the forest pond won't have enough water to swim, and the wise frogs will get thirsty. Let's make sure the taps are turned off tight! 🦆💚`,
+        message: `We used ${value}L of water today—that's enough to fill 4 giant swimming pools! If we waste it, the little ducklings in the forest pond won't have enough water to swim. Let's turn off the taps tight! 🦆💚`,
         color: "#FEF3C7",
         borderColor: "#F59E0B",
         emoji: "🦆",
@@ -170,78 +206,145 @@ export default function InsightsScreen() {
     } else {
       return {
         title: "Yay! You Saved The Frogs! 🐸🎉",
-        message: `Superstar! We used only ${lastLog.waterConsumedLiters}L of water today. Because you kept your water use low, the Blue Forest River is flowing happily, keeping 12 little frogs safe and cool! You are an environmental hero! 🐸💎`,
+        message: `Superstar! We used only ${value}L of water today. Because you kept your water use low, the Blue Forest River is flowing happily, keeping 12 little frogs safe and cool! 🐸💎`,
         color: "#ECFDF5",
         borderColor: "#10B981",
         emoji: "🐸",
       };
     }
-  }, [isHighWater, lastLog]);
+  }, [isHighWater, lastLog, hourlyLogs, timeRange]);
+
+  // Handle graph touch/scrub gesture calculation
+  const handleGraphTouch = (locationX: number) => {
+    const list = timeRange === "today" ? hourlyLogs : filteredLogs;
+    if (list.length <= 1) return;
+
+    if (locationX < 0 || locationX > chartWidth) {
+      setActivePointIndex(null);
+      return;
+    }
+
+    let index = Math.round((locationX / chartWidth) * (list.length - 1));
+    index = Math.max(0, Math.min(list.length - 1, index));
+    setActivePointIndex(index);
+  };
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    // Offset padding and yAxis labels (48px yAxis + 32px padding = 80px total offset)
+    setChartWidth(width - 48 - 32); 
+  };
+
+  const activeWaterValue = useMemo(() => {
+    if (activePointIndex === null) return null;
+    if (timeRange === "today") {
+      return hourlyLogs[activePointIndex]?.waterConsumedLiters;
+    }
+    return filteredLogs[activePointIndex]?.waterConsumedLiters;
+  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+
+  const activeWaterLabel = useMemo(() => {
+    if (activePointIndex === null) return "";
+    if (timeRange === "today") {
+      return hourlyLogs[activePointIndex]?.time || "";
+    }
+    return filteredLogs[activePointIndex]?.date || "";
+  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+
+  const activeEnvLabel = useMemo(() => {
+    if (activePointIndex === null) return "";
+    const list = timeRange === "today" ? hourlyLogs : filteredLogs;
+    return timeRange === "today" ? (list[activePointIndex] as HourlySensorLog)?.time : (list[activePointIndex] as DailySensorLog)?.date;
+  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+
+  const activeEnvValue1 = useMemo(() => {
+    if (activePointIndex === null) return null;
+    const list = timeRange === "today" ? hourlyLogs : filteredLogs;
+    return timeRange === "today" ? (list[activePointIndex] as HourlySensorLog)?.temperature : (list[activePointIndex] as DailySensorLog)?.averageTemperature;
+  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+
+  const activeEnvValue2 = useMemo(() => {
+    if (activePointIndex === null) return null;
+    const list = timeRange === "today" ? hourlyLogs : filteredLogs;
+    return timeRange === "today" ? (list[activePointIndex] as HourlySensorLog)?.humidity : (list[activePointIndex] as DailySensorLog)?.averageHumidity;
+  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+
+  const activeTvocValue = useMemo(() => {
+    if (activePointIndex === null) return null;
+    const list = timeRange === "today" ? hourlyLogs : filteredLogs;
+    return timeRange === "today" ? (list[activePointIndex] as HourlySensorLog)?.tvoc : (list[activePointIndex] as DailySensorLog)?.averageTVOC;
+  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
 
   return (
     <Screen scrollable style={styles.container}>
       {/* 1. Time Range Selector Header */}
       <View style={styles.rangeSelectorContainer}>
         <View style={styles.segmentedControl}>
-          {([7, 30, 45] as const).map((range) => (
-            <TouchableOpacity
-              key={range}
-              style={[
-                styles.segmentButton,
-                timeRange === range && styles.segmentButtonActive,
-              ]}
-              onPress={() => setTimeRange(range)}
-            >
-              <Text
-                variant="label-sm"
-                style={[
-                  styles.segmentText,
-                  timeRange === range && styles.segmentTextActive,
-                ]}
-              >
-                {range} Days
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity
+            style={[styles.segmentButton, timeRange === "today" && styles.segmentButtonActive]}
+            onPress={() => { setTimeRange("today"); setActivePointIndex(null); }}
+          >
+            <Text variant="label-sm" style={[styles.segmentText, timeRange === "today" && styles.segmentTextActive]}>
+              Today
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.segmentButton, timeRange === 7 && styles.segmentButtonActive]}
+            onPress={() => { setTimeRange(7); setActivePointIndex(null); }}
+          >
+            <Text variant="label-sm" style={[styles.segmentText, timeRange === 7 && styles.segmentTextActive]}>
+              7 Days
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.segmentButton, timeRange === 30 && styles.segmentButtonActive]}
+            onPress={() => { setTimeRange(30); setActivePointIndex(null); }}
+          >
+            <Text variant="label-sm" style={[styles.segmentText, timeRange === 30 && styles.segmentTextActive]}>
+              30 Days
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.segmentButton, timeRange === "custom" && styles.segmentButtonActive]}
+            onPress={() => { setTimeRange("custom"); setActivePointIndex(null); }}
+          >
+            <Text variant="label-sm" style={[styles.segmentText, timeRange === "custom" && styles.segmentTextActive]}>
+              Custom
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* 2. Top Summary Widget Grid */}
-      <View style={styles.statsGrid}>
-        <Card style={styles.statsCard}>
-          <Text variant="meta-sm" style={styles.statsCardLabel}>
-            AVERAGE DAILY
+      {/* 2. Custom Date Range Pickers (Visible only when 'custom' selected) */}
+      {timeRange === "custom" && (
+        <Card style={styles.customDateCard}>
+          <Text variant="label-sm" style={styles.customDateTitle}>
+            Custom Date Range
           </Text>
-          <View style={styles.statsCardValueRow}>
-            <Text variant="headline-lg" style={styles.statsCardValue}>
-              {telemetryInsights.averageWaterLiters}
-            </Text>
-            <Text variant="label-sm" style={styles.statsCardUnit}>
-              L/day
-            </Text>
-          </View>
-        </Card>
-
-        <Card style={[styles.statsCard, isHighWater && styles.statsCardWarning]}>
-          <Text variant="meta-sm" style={styles.statsCardLabel}>
-            MAX CONSUMED
-          </Text>
-          <View style={styles.statsCardValueRow}>
-            <Text
-              variant="headline-lg"
-              style={[
-                styles.statsCardValue,
-                isHighWater && { color: colors.semantic.warning },
-              ]}
+          <View style={styles.customDateRow}>
+            <TouchableOpacity
+              style={styles.dateSelectorBtn}
+              onPress={() => setIsSelectingStartDate(true)}
             >
-              {telemetryInsights.maxWaterLiters}
-            </Text>
-            <Text variant="label-sm" style={styles.statsCardUnit}>
-              L
-            </Text>
+              <Text variant="meta-sm" style={styles.dateSelectorLabel}>START DATE</Text>
+              <Text variant="body-md" style={styles.dateSelectorValue}>{customStartDate}</Text>
+            </TouchableOpacity>
+
+            <Icon name="arrow-right" size={16} color={colors.text.muted} />
+
+            <TouchableOpacity
+              style={styles.dateSelectorBtn}
+              onPress={() => setIsSelectingEndDate(true)}
+            >
+              <Text variant="meta-sm" style={styles.dateSelectorLabel}>END DATE</Text>
+              <Text variant="body-md" style={styles.dateSelectorValue}>{customEndDate}</Text>
+            </TouchableOpacity>
           </View>
         </Card>
-      </View>
+      )}
 
       {/* 3. Sustainable Insights Mode Selector */}
       <View style={styles.modeContainer}>
@@ -249,15 +352,8 @@ export default function InsightsScreen() {
           style={[styles.modeTabButton, mode === "ai" && styles.modeTabButtonActive]}
           onPress={() => setMode("ai")}
         >
-          <Icon
-            name="activity"
-            size={16}
-            color={mode === "ai" ? "#FAF8F5" : colors.text.muted}
-          />
-          <Text
-            variant="label-sm"
-            style={[styles.modeTabText, mode === "ai" && styles.modeTabTextActive]}
-          >
+          <Icon name="activity" size={16} color={mode === "ai" ? "#FAF8F5" : colors.text.muted} />
+          <Text variant="label-sm" style={[styles.modeTabText, mode === "ai" && styles.modeTabTextActive]}>
             AI Advisor
           </Text>
         </TouchableOpacity>
@@ -266,15 +362,8 @@ export default function InsightsScreen() {
           style={[styles.modeTabButton, mode === "kids" && styles.modeTabButtonActive]}
           onPress={() => setMode("kids")}
         >
-          <Icon
-            name="smile"
-            size={16}
-            color={mode === "kids" ? "#FAF8F5" : colors.text.muted}
-          />
-          <Text
-            variant="label-sm"
-            style={[styles.modeTabText, mode === "kids" && styles.modeTabTextActive]}
-          >
+          <Icon name="smile" size={16} color={mode === "kids" ? "#FAF8F5" : colors.text.muted} />
+          <Text variant="label-sm" style={[styles.modeTabText, mode === "kids" && styles.modeTabTextActive]}>
             Kids Story Mode
           </Text>
         </TouchableOpacity>
@@ -282,19 +371,9 @@ export default function InsightsScreen() {
 
       {/* 4. Advisor / Stories Detail Card */}
       {mode === "ai" ? (
-        <Card
-          style={[
-            styles.advisorCard,
-            isHighWater ? styles.advisorWarning : styles.advisorNormal,
-          ]}
-        >
+        <Card style={[styles.advisorCard, isHighWater ? styles.advisorWarning : styles.advisorNormal]}>
           <View style={styles.advisorHeader}>
-            <View
-              style={[
-                styles.iconBadge,
-                isHighWater ? styles.badgeWarning : styles.badgeNormal,
-              ]}
-            >
+            <View style={[styles.iconBadge, isHighWater ? styles.badgeWarning : styles.badgeNormal]}>
               <Icon
                 name={isHighWater ? "alert-circle" : "check-circle"}
                 size={18}
@@ -307,126 +386,153 @@ export default function InsightsScreen() {
           </View>
           <Text variant="body-md" style={styles.advisorText}>
             {isHighWater
-              ? `Daily consumption spiked to ${lastLog.waterConsumedLiters}L today—which is ${telemetryInsights.waterDeviationPercentage}% above your normal average of ${telemetryInsights.averageWaterLiters}L. Check for leaky bathroom valves or faucets.`
-              : `Water consumption is stable. Today's usage of ${lastLog.waterConsumedLiters}L aligns perfectly with your average sustainability baseline.`}
+              ? `Water consumption spiked above normal average levels. Review your recent telemetry chart to identify leakage times.`
+              : `Water consumption is stable. Today's usage aligns perfectly with your average sustainability baseline.`}
           </Text>
         </Card>
       ) : (
-        <View
-          style={[
-            styles.kidsStoryCard,
-            { backgroundColor: kidsStory.color, borderColor: kidsStory.borderColor },
-          ]}
-        >
+        <View style={[styles.kidsStoryCard, { backgroundColor: kidsStory.color, borderColor: kidsStory.borderColor }]}>
           <View style={styles.kidsStoryHeader}>
-            <Text variant="headline-lg" style={styles.kidsStoryEmoji}>
-              {kidsStory.emoji}
-            </Text>
+            <Text variant="headline-lg" style={styles.kidsStoryEmoji}>{kidsStory.emoji}</Text>
             <Text variant="headline-lg" style={styles.kidsStoryTitle}>
               {kidsStory.title}
             </Text>
           </View>
-          <Text variant="body-md" style={styles.kidsStoryText}>
-            {kidsStory.message}
-          </Text>
+          <Text variant="body-md" style={styles.kidsStoryText}>{kidsStory.message}</Text>
         </View>
       )}
 
       {/* 5. Chart A: Water Consumption Trends */}
-      <SectionHeader title="Water Consumption Trends" />
-      <Card style={styles.chartCard}>
-        <View style={styles.chartLabelRow}>
-          <Text variant="label-sm" style={styles.chartSubLabel}>
-            Daily Volume (Liters)
-          </Text>
-          <Text variant="label-sm" style={styles.chartPeakLabel}>
-            Peak Today: {lastLog.waterConsumedLiters}L
-          </Text>
-        </View>
+      <SectionHeader title={timeRange === "today" ? "Hourly Water Flow rate" : "Water Consumption Trends"} />
+      <View onLayout={handleLayout}>
+        <Card style={styles.chartCard}>
+          {/* Floating Interactive Tooltip */}
+          {activePointIndex !== null && activeWaterValue !== null ? (
+            <View style={styles.tooltipBubble}>
+              <Text variant="label-sm" style={styles.tooltipText}>
+                {activeWaterLabel}: {activeWaterValue} L
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.chartLabelRow}>
+              <Text variant="label-sm" style={styles.chartSubLabel}>
+                {timeRange === "today" ? "Flow Rate (Liters/hour)" : "Daily Volume (Liters)"}
+              </Text>
+              <Text variant="label-sm" style={styles.chartPeakLabel}>
+                {timeRange === "today" ? "Scrub graph to view hourly data" : `Peak: ${telemetryInsights.maxWaterLiters}L`}
+              </Text>
+            </View>
+          )}
 
-        <View style={styles.chartWrapper}>
-          {/* Y Axis Labels */}
-          <View style={styles.yAxisLabels}>
-            <Text variant="meta-sm" style={styles.yAxisText}>
-              {Math.round(waterBounds.max)}L
-            </Text>
-            <Text variant="meta-sm" style={styles.yAxisText}>
-              {Math.round((waterBounds.max + waterBounds.min) / 2)}L
-            </Text>
-            <Text variant="meta-sm" style={styles.yAxisText}>
-              {Math.round(waterBounds.min)}L
-            </Text>
+          {/* Graph content box with custom touch handlers */}
+          <View style={styles.chartWrapper}>
+            {/* Y Axis Labels */}
+            <View style={styles.yAxisLabels}>
+              <Text variant="meta-sm" style={styles.yAxisText}>{Math.round(waterBounds.max)}L</Text>
+              <Text variant="meta-sm" style={styles.yAxisText}>{Math.round((waterBounds.max + waterBounds.min) / 2)}L</Text>
+              <Text variant="meta-sm" style={styles.yAxisText}>{Math.round(waterBounds.min)}L</Text>
+            </View>
+
+            {/* SVG Canvas wrapped in a touch-sensitive View */}
+            {waterChart.linePath ? (
+              <View
+                onTouchStart={(e: GestureResponderEvent) => handleGraphTouch(e.nativeEvent.locationX)}
+                onTouchMove={(e: GestureResponderEvent) => handleGraphTouch(e.nativeEvent.locationX)}
+                onTouchEnd={() => setActivePointIndex(null)}
+              >
+                <Svg width={chartWidth} height={CHART_HEIGHT}>
+                  <Defs>
+                    <LinearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+                      <Stop offset="0%" stopColor={colors.accent.primary} stopOpacity={0.35} />
+                      <Stop offset="100%" stopColor={colors.accent.primary} stopOpacity={0.0} />
+                    </LinearGradient>
+                  </Defs>
+
+                  {/* Grid Lines */}
+                  <Line x1="0" y1="20" x2={chartWidth} y2="20" stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+                  <Line x1="0" y1={CHART_HEIGHT / 2} x2={chartWidth} y2={CHART_HEIGHT / 2} stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+                  <Line x1="0" y1={CHART_HEIGHT - 20} x2={chartWidth} y2={CHART_HEIGHT - 20} stroke={colors.accent.border} strokeWidth="1" />
+
+                  {/* Area path */}
+                  <Path d={waterChart.areaPath} fill="url(#waterGrad)" />
+
+                  {/* Main Line path */}
+                  <Path d={waterChart.linePath} fill="none" stroke={colors.accent.primary} strokeWidth="2.5" />
+
+                  {/* Anomaly Highlight Circles */}
+                  {timeRange !== "today" && waterChart.points && filteredLogs.map((log, index) => {
+                    if (log.isAnomaly) {
+                      const pt = waterChart.points[index];
+                      if (!pt) return null;
+                      return (
+                        <Circle
+                          key={index}
+                          cx={pt.x}
+                          cy={pt.y}
+                          r="5"
+                          fill={colors.semantic.warning}
+                          stroke="#FAF8F5"
+                          strokeWidth="1.5"
+                        />
+                      );
+                    }
+                    return null;
+                  })}
+
+                  {/* Interactive vertical scrub indicator */}
+                  {activePointIndex !== null && waterChart.points[activePointIndex] && (
+                    <>
+                      <Line
+                        x1={waterChart.points[activePointIndex]!.x}
+                        y1={0}
+                        x2={waterChart.points[activePointIndex]!.x}
+                        y2={CHART_HEIGHT}
+                        stroke={colors.accent.primary}
+                        strokeWidth="1"
+                        strokeDasharray="3 3"
+                      />
+                      <Circle
+                        cx={waterChart.points[activePointIndex]!.x}
+                        cy={waterChart.points[activePointIndex]!.y}
+                        r="8"
+                        fill={colors.accent.primary}
+                        stroke="#FAF8F5"
+                        strokeWidth="2.5"
+                      />
+                    </>
+                  )}
+                </Svg>
+              </View>
+            ) : null}
           </View>
 
-          {/* SVG Canvas */}
-          {waterChart.linePath ? (
-            <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-              <Defs>
-                <LinearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0%" stopColor={colors.accent.primary} stopOpacity={0.35} />
-                  <Stop offset="100%" stopColor={colors.accent.primary} stopOpacity={0.0} />
-                </LinearGradient>
-              </Defs>
-
-              {/* Grid Lines */}
-              <Line x1="0" y1="20" x2={CHART_WIDTH} y2="20" stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
-              <Line x1="0" y1={CHART_HEIGHT / 2} x2={CHART_WIDTH} y2={CHART_HEIGHT / 2} stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
-              <Line x1="0" y1={CHART_HEIGHT - 20} x2={CHART_WIDTH} y2={CHART_HEIGHT - 20} stroke={colors.accent.border} strokeWidth="1" />
-
-              {/* Area path */}
-              <Path d={waterChart.areaPath} fill="url(#waterGrad)" />
-
-              {/* Main Line path */}
-              <Path d={waterChart.linePath} fill="none" stroke={colors.accent.primary} strokeWidth="2.5" />
-
-              {/* Anomaly Highlight Circles */}
-              {waterChart.points && filteredLogs.map((log, index) => {
-                if (log.isAnomaly) {
-                  const pt = waterChart.points[index];
-                  if (!pt) return null;
-                  return (
-                    <Circle
-                      key={index}
-                      cx={pt.x}
-                      cy={pt.y}
-                      r="6"
-                      fill={colors.semantic.warning}
-                      stroke="#FAF8F5"
-                      strokeWidth="2"
-                    />
-                  );
-                }
-                return null;
-              })}
-            </Svg>
-          ) : null}
-        </View>
-
-        {/* X Axis Labels */}
-        <View style={styles.chartXLabels}>
-          <Text variant="meta-sm" style={styles.xAxisText}>
-            {filteredLogs[0]?.date}
-          </Text>
-          <Text variant="meta-sm" style={styles.xAxisText}>
-            {filteredLogs[Math.floor(filteredLogs.length / 2)]?.date}
-          </Text>
-          <Text variant="meta-sm" style={styles.xAxisText}>
-            {lastLog.date}
-          </Text>
-        </View>
-      </Card>
+          {/* X Axis Labels */}
+          <View style={styles.chartXLabels}>
+            {timeRange === "today" ? (
+              <>
+                <Text variant="meta-sm" style={styles.xAxisText}>00:00</Text>
+                <Text variant="meta-sm" style={styles.xAxisText}>12:00</Text>
+                <Text variant="meta-sm" style={styles.xAxisText}>23:00</Text>
+              </>
+            ) : (
+              <>
+                <Text variant="meta-sm" style={styles.xAxisText}>{filteredLogs[0]?.date}</Text>
+                <Text variant="meta-sm" style={styles.xAxisText}>{filteredLogs[Math.floor(filteredLogs.length / 2)]?.date}</Text>
+                <Text variant="meta-sm" style={styles.xAxisText}>{lastLog.date}</Text>
+              </>
+            )}
+          </View>
+        </Card>
+      </View>
 
       {/* 6. Chart B: Environmental Metrics */}
-      <SectionHeader title="Environmental Telemetry" />
+      <SectionHeader title={timeRange === "today" ? "Environmental Telemetry (Today)" : "Environmental Telemetry"} />
       <View style={styles.tabSelectorRow}>
         <TouchableOpacity
           style={[styles.tabButton, envTab === "temp_hum" && styles.tabButtonActive]}
           onPress={() => setEnvTab("temp_hum")}
         >
-          <Text
-            variant="label-sm"
-            style={[styles.tabText, envTab === "temp_hum" && styles.tabTextActive]}
-          >
+          <Text variant="label-sm" style={[styles.tabText, envTab === "temp_hum" && styles.tabTextActive]}>
             Temp & Humidity
           </Text>
         </TouchableOpacity>
@@ -435,174 +541,198 @@ export default function InsightsScreen() {
           style={[styles.tabButton, envTab === "tvoc" && styles.tabButtonActive]}
           onPress={() => setEnvTab("tvoc")}
         >
-          <Text
-            variant="label-sm"
-            style={[styles.tabText, envTab === "tvoc" && styles.tabTextActive]}
-          >
+          <Text variant="label-sm" style={[styles.tabText, envTab === "tvoc" && styles.tabTextActive]}>
             Air Quality (TVOC)
           </Text>
         </TouchableOpacity>
       </View>
 
       <Card style={styles.chartCard}>
-        {envTab === "temp_hum" ? (
-          <>
+        {activePointIndex !== null ? (
+          <View style={styles.tooltipBubble}>
+            <Text variant="label-sm" style={styles.tooltipText}>
+              {envTab === "temp_hum" ? (
+                `${activeEnvLabel}: ${activeEnvValue1}°C | ${activeEnvValue2}% Hum`
+              ) : (
+                `${activeEnvLabel}: ${activeTvocValue} ppb`
+              )}
+            </Text>
+          </View>
+        ) : (
+          envTab === "temp_hum" ? (
             <View style={styles.chartLegendRow}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendIndicator, { backgroundColor: "#3B82F6" }]} />
-                <Text variant="label-sm" style={styles.chartSubLabel}>
-                  Temp (°C)
-                </Text>
+                <Text variant="label-sm" style={styles.chartSubLabel}>Temp (°C)</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendIndicator, { backgroundColor: "#10B981" }]} />
-                <Text variant="label-sm" style={styles.chartSubLabel}>
-                  Humidity (%)
-                </Text>
+                <Text variant="label-sm" style={styles.chartSubLabel}>Humidity (%)</Text>
               </View>
             </View>
-
-            <View style={styles.chartWrapper}>
-              {/* Y Axis Labels */}
-              <View style={styles.yAxisLabels}>
-                <Text variant="meta-sm" style={styles.yAxisText}>
-                  {Math.round(envBounds.max1)}°C
-                </Text>
-                <Text variant="meta-sm" style={styles.yAxisText}>
-                  {Math.round((envBounds.max1 + envBounds.min1) / 2)}°C
-                </Text>
-                <Text variant="meta-sm" style={styles.yAxisText}>
-                  {Math.round(envBounds.min1)}°C
-                </Text>
-              </View>
-
-              {/* Svg lines */}
-              {envChart.line1 ? (
-                <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-                  {/* Grid Lines */}
-                  <Line x1="0" y1="20" x2={CHART_WIDTH} y2="20" stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
-                  <Line x1="0" y1={CHART_HEIGHT / 2} x2={CHART_WIDTH} y2={CHART_HEIGHT / 2} stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
-                  <Line x1="0" y1={CHART_HEIGHT - 20} x2={CHART_WIDTH} y2={CHART_HEIGHT - 20} stroke={colors.accent.border} strokeWidth="1" />
-
-                  {/* Humidity Line */}
-                  {envChart.line2 && <Path d={envChart.line2} fill="none" stroke="#10B981" strokeWidth="2.2" />}
-
-                  {/* Temp Line */}
-                  <Path d={envChart.line1} fill="none" stroke="#3B82F6" strokeWidth="2.2" />
-                </Svg>
-              ) : null}
-            </View>
-          </>
-        ) : (
-          <>
+          ) : (
             <View style={styles.chartLabelRow}>
-              <Text variant="label-sm" style={styles.chartSubLabel}>
-                TVOC Level (parts per billion)
-              </Text>
-              <Text variant="label-sm" style={styles.chartPeakLabel}>
-                Current: {telemetryInsights.currentTVOC} ppb
-              </Text>
+              <Text variant="label-sm" style={styles.chartSubLabel}>TVOC (parts per billion)</Text>
+              <Text variant="label-sm" style={styles.chartPeakLabel}>Scrub graph for air quality metrics</Text>
             </View>
-
-            <View style={styles.chartWrapper}>
-              {/* Y Axis Labels */}
-              <View style={styles.yAxisLabels}>
-                <Text variant="meta-sm" style={styles.yAxisText}>
-                  {Math.round(envBounds.max1)} ppb
-                </Text>
-                <Text variant="meta-sm" style={styles.yAxisText}>
-                  {Math.round((envBounds.max1 + envBounds.min1) / 2)} ppb
-                </Text>
-                <Text variant="meta-sm" style={styles.yAxisText}>
-                  {Math.round(envBounds.min1)} ppb
-                </Text>
-              </View>
-
-              {/* Svg area */}
-              {envChart.line1 ? (
-                <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-                  <Defs>
-                    <LinearGradient id="tvocGrad" x1="0" y1="0" x2="0" y2="1">
-                      <Stop offset="0%" stopColor="#A855F7" stopOpacity={0.3} />
-                      <Stop offset="100%" stopColor="#A855F7" stopOpacity={0.0} />
-                    </LinearGradient>
-                  </Defs>
-
-                  {/* Grid Lines */}
-                  <Line x1="0" y1="20" x2={CHART_WIDTH} y2="20" stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
-                  <Line x1="0" y1={CHART_HEIGHT / 2} x2={CHART_WIDTH} y2={CHART_HEIGHT / 2} stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
-                  <Line x1="0" y1={CHART_HEIGHT - 20} x2={CHART_WIDTH} y2={CHART_HEIGHT - 20} stroke={colors.accent.border} strokeWidth="1" />
-
-                  {envChart.area1 && <Path d={envChart.area1} fill="url(#tvocGrad)" />}
-                  <Path d={envChart.line1} fill="none" stroke="#A855F7" strokeWidth="2.2" />
-                </Svg>
-              ) : null}
-            </View>
-          </>
+          )
         )}
 
+        <View style={styles.chartWrapper}>
+          {/* Y Axis Labels */}
+          <View style={styles.yAxisLabels}>
+            {envTab === "temp_hum" ? (
+              <>
+                <Text variant="meta-sm" style={styles.yAxisText}>{Math.round(envBounds.max1)}°C</Text>
+                <Text variant="meta-sm" style={styles.yAxisText}>{Math.round((envBounds.max1 + envBounds.min1) / 2)}°C</Text>
+                <Text variant="meta-sm" style={styles.yAxisText}>{Math.round(envBounds.min1)}°C</Text>
+              </>
+            ) : (
+              <>
+                <Text variant="meta-sm" style={styles.yAxisText}>{Math.round(envBounds.max1)} ppb</Text>
+                <Text variant="meta-sm" style={styles.yAxisText}>{Math.round((envBounds.max1 + envBounds.min1) / 2)} ppb</Text>
+                <Text variant="meta-sm" style={styles.yAxisText}>{Math.round(envBounds.min1)} ppb</Text>
+              </>
+            )}
+          </View>
+
+          {/* Svg lines wrapped in a touch-sensitive View */}
+          {envChart.line1 ? (
+            <View
+              onTouchStart={(e: GestureResponderEvent) => handleGraphTouch(e.nativeEvent.locationX)}
+              onTouchMove={(e: GestureResponderEvent) => handleGraphTouch(e.nativeEvent.locationX)}
+              onTouchEnd={() => setActivePointIndex(null)}
+            >
+              <Svg width={chartWidth} height={CHART_HEIGHT}>
+                {/* Grid Lines */}
+                <Line x1="0" y1="20" x2={chartWidth} y2="20" stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+                <Line x1="0" y1={CHART_HEIGHT / 2} x2={chartWidth} y2={CHART_HEIGHT / 2} stroke={colors.accent.border} strokeWidth="1" strokeDasharray="3 3" />
+                <Line x1="0" y1={CHART_HEIGHT - 20} x2={chartWidth} y2={CHART_HEIGHT - 20} stroke={colors.accent.border} strokeWidth="1" />
+
+                {envTab === "temp_hum" ? (
+                  <>
+                    {envChart.line2 && <Path d={envChart.line2} fill="none" stroke="#10B981" strokeWidth="2.2" />}
+                    <Path d={envChart.line1} fill="none" stroke="#3B82F6" strokeWidth="2.2" />
+
+                    {/* Active touch indicator */}
+                    {activePointIndex !== null && envChart.points1 && envChart.points1[activePointIndex] && (
+                      <>
+                        <Line
+                          x1={envChart.points1[activePointIndex]!.x}
+                          y1={0}
+                          x2={envChart.points1[activePointIndex]!.x}
+                          y2={CHART_HEIGHT}
+                          stroke={colors.accent.primary}
+                          strokeWidth="1"
+                          strokeDasharray="3 3"
+                        />
+                        <Circle cx={envChart.points1[activePointIndex]!.x} cy={envChart.points1[activePointIndex]!.y} r="6" fill="#3B82F6" stroke="#FAF8F5" strokeWidth="2" />
+                        {envChart.points2 && envChart.points2[activePointIndex] && (
+                          <Circle cx={envChart.points2[activePointIndex]!.x} cy={envChart.points2[activePointIndex]!.y} r="6" fill="#10B981" stroke="#FAF8F5" strokeWidth="2" />
+                        )}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Defs>
+                      <LinearGradient id="tvocGrad" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0%" stopColor="#A855F7" stopOpacity="0.3" />
+                        <Stop offset="100%" stopColor="#A855F7" stopOpacity="0.0" />
+                      </LinearGradient>
+                    </Defs>
+                    {envChart.area1 && <Path d={envChart.area1} fill="url(#tvocGrad)" />}
+                    <Path d={envChart.line1} fill="none" stroke="#A855F7" strokeWidth="2.2" />
+
+                    {/* Active touch indicator */}
+                    {activePointIndex !== null && envChart.points1 && envChart.points1[activePointIndex] && (
+                      <>
+                        <Line
+                          x1={envChart.points1[activePointIndex]!.x}
+                          y1={0}
+                          x2={envChart.points1[activePointIndex]!.x}
+                          y2={CHART_HEIGHT}
+                          stroke={colors.accent.primary}
+                          strokeWidth="1"
+                          strokeDasharray="3 3"
+                        />
+                        <Circle cx={envChart.points1[activePointIndex]!.x} cy={envChart.points1[activePointIndex]!.y} r="7" fill="#A855F7" stroke="#FAF8F5" strokeWidth="2" />
+                      </>
+                    )}
+                  </>
+                )}
+              </Svg>
+            </View>
+          ) : null}
+        </View>
+
         <View style={styles.chartXLabels}>
-          <Text variant="meta-sm" style={styles.xAxisText}>
-            {filteredLogs[0]?.date}
-          </Text>
-          <Text variant="meta-sm" style={styles.xAxisText}>
-            {filteredLogs[Math.floor(filteredLogs.length / 2)]?.date}
-          </Text>
-          <Text variant="meta-sm" style={styles.xAxisText}>
-            {lastLog.date}
-          </Text>
+          {timeRange === "today" ? (
+            <>
+              <Text variant="meta-sm" style={styles.xAxisText}>00:00</Text>
+              <Text variant="meta-sm" style={styles.xAxisText}>12:00</Text>
+              <Text variant="meta-sm" style={styles.xAxisText}>23:00</Text>
+            </>
+          ) : (
+            <>
+              <Text variant="meta-sm" style={styles.xAxisText}>{filteredLogs[0]?.date}</Text>
+              <Text variant="meta-sm" style={styles.xAxisText}>{filteredLogs[Math.floor(filteredLogs.length / 2)]?.date}</Text>
+              <Text variant="meta-sm" style={styles.xAxisText}>{lastLog.date}</Text>
+            </>
+          )}
         </View>
       </Card>
 
-      {/* 7. TinyML Execution Status Widget */}
-      <SectionHeader title="Uno Q TinyML AI Engine" />
-      <Card style={styles.tinymlCard}>
-        <View style={styles.tinymlHeader}>
-          <Icon name="cpu" size={20} color={colors.accent.primary} />
-          <Text variant="headline-lg" style={styles.tinymlTitle}>
-            On-Device TinyML Execution Status
-          </Text>
+      {/* Date Pickers Modals */}
+      <Modal visible={isSelectingStartDate} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <Card style={styles.pickerModalCard}>
+            <Text variant="headline-lg" style={styles.modalTitle}>Select Start Date</Text>
+            <FlatList
+              data={sensorLogs}
+              keyExtractor={(item) => item.date}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.pickerItem, item.date === customStartDate && styles.pickerItemActive]}
+                  onPress={() => {
+                    setCustomStartDate(item.date);
+                    setIsSelectingStartDate(false);
+                  }}
+                >
+                  <Text variant="body-md" style={[styles.pickerItemText, item.date === customStartDate && styles.pickerItemTextActive]}>
+                    {item.date}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </Card>
         </View>
+      </Modal>
 
-        <View style={styles.tinymlRow}>
-          <View style={styles.tinymlRowLeft}>
-            <View style={styles.activeDot} />
-            <Text variant="label-sm" style={styles.tinymlStatus}>
-              Wake word listener active
-            </Text>
-          </View>
-          <Text variant="meta-sm" style={styles.tinymlLatency}>
-            Latency: 84ms
-          </Text>
+      <Modal visible={isSelectingEndDate} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <Card style={styles.pickerModalCard}>
+            <Text variant="headline-lg" style={styles.modalTitle}>Select End Date</Text>
+            <FlatList
+              data={sensorLogs}
+              keyExtractor={(item) => item.date}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.pickerItem, item.date === customEndDate && styles.pickerItemActive]}
+                  onPress={() => {
+                    setCustomEndDate(item.date);
+                    setIsSelectingEndDate(false);
+                  }}
+                >
+                  <Text variant="body-md" style={[styles.pickerItemText, item.date === customEndDate && styles.pickerItemTextActive]}>
+                    {item.date}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </Card>
         </View>
-
-        {/* TinyML Progress Metrics */}
-        <View style={styles.progressRow}>
-          <View style={styles.progressBarWrapper}>
-            <Text variant="meta-sm" style={styles.progressLabel}>
-              SRAM UTILIZATION
-            </Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: "92%", backgroundColor: colors.accent.primary }]} />
-            </View>
-            <Text variant="meta-sm" style={styles.progressPercent}>
-              92% (235 KB / 256 KB)
-            </Text>
-          </View>
-
-          <View style={styles.progressBarWrapper}>
-            <Text variant="meta-sm" style={styles.progressLabel}>
-              FLASH STORAGE USED
-            </Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: "74%", backgroundColor: "#4B5563" }]} />
-            </View>
-            <Text variant="meta-sm" style={styles.progressPercent}>
-              74% (384 KB / 512 KB)
-            </Text>
-          </View>
-        </View>
-      </Card>
+      </Modal>
 
       <View style={styles.bottomSpacer} />
     </Screen>
@@ -647,41 +777,43 @@ const styles = StyleSheet.create({
   segmentTextActive: {
     color: colors.accent.primary,
   },
-  statsGrid: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 20,
-  },
-  statsCard: {
-    flex: 1,
+  customDateCard: {
     padding: 16,
     borderRadius: 16,
+    marginBottom: 20,
     backgroundColor: colors.background.secondary,
     borderWidth: 1,
     borderColor: colors.accent.border,
   },
-  statsCardWarning: {
-    borderColor: colors.semantic.warning,
-  },
-  statsCardLabel: {
+  customDateTitle: {
     color: colors.text.muted,
     fontWeight: "700",
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  statsCardValueRow: {
+  customDateRow: {
     flexDirection: "row",
-    alignItems: "baseline",
-    gap: 4,
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
   },
-  statsCardValue: {
-    color: colors.text.primary,
-    fontSize: 28,
-    fontWeight: "800",
+  dateSelectorBtn: {
+    flex: 1,
+    backgroundColor: "#FAF8F5",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.accent.border,
   },
-  statsCardUnit: {
+  dateSelectorLabel: {
     color: colors.text.muted,
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: 9,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  dateSelectorValue: {
+    fontWeight: "700",
+    color: colors.text.primary,
   },
   modeContainer: {
     flexDirection: "row",
@@ -817,7 +949,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
   },
   yAxisLabels: {
-    width: 40,
+    width: 48,
     justifyContent: "space-between",
     alignItems: "flex-end",
     paddingRight: 8,
@@ -832,7 +964,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 8,
-    paddingLeft: 40, // offset for y-axis labels
+    paddingLeft: 48, // offset for y-axis labels
     paddingRight: 4,
   },
   xAxisText: {
@@ -863,84 +995,54 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: "#FAF8F5",
   },
-  tinymlCard: {
-    padding: 16,
-    borderColor: colors.accent.border,
-    borderWidth: 1,
-    borderRadius: 16,
-    marginBottom: 32,
-  },
-  tinymlHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.space2,
-    marginBottom: 16,
-  },
-  tinymlTitle: {
-    fontWeight: "700",
-    color: colors.text.primary,
-  },
-  tinymlRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: colors.background.primary,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.accent.border,
-    marginBottom: 16,
-  },
-  tinymlRowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.semantic.success,
-  },
-  tinymlStatus: {
-    color: colors.text.primary,
-    fontWeight: "600",
-  },
-  tinymlLatency: {
-    color: colors.text.muted,
-    fontWeight: "700",
-  },
-  progressRow: {
-    gap: 16,
-  },
-  progressBarWrapper: {
-    width: "100%",
-  },
-  progressLabel: {
-    color: colors.text.muted,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: colors.background.secondary,
-    borderRadius: 4,
-    overflow: "hidden",
-    borderWidth: 0.5,
-    borderColor: colors.accent.border,
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  progressPercent: {
-    color: colors.text.muted,
-    fontWeight: "600",
-    marginTop: 4,
-    textAlign: "right",
-  },
   bottomSpacer: {
     height: 48,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(27, 54, 41, 0.4)",
+    justifyContent: "flex-end",
+  },
+  pickerModalCard: {
+    backgroundColor: "#FAF8F5",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: 400,
+  },
+  modalTitle: {
+    color: colors.text.primary,
+    fontWeight: "800",
+    marginBottom: 16,
+  },
+  pickerItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.accent.border,
+  },
+  pickerItemActive: {
+    backgroundColor: colors.background.secondary,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+  },
+  pickerItemText: {
+    color: colors.text.primary,
+    fontWeight: "600",
+  },
+  pickerItemTextActive: {
+    color: colors.accent.primary,
+    fontWeight: "800",
+  },
+  tooltipBubble: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.text.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  tooltipText: {
+    color: "#FAF8F5",
+    fontWeight: "700",
   },
 });

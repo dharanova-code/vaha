@@ -2,8 +2,10 @@ import { useMemo } from "react";
 import { useCaptureStore } from "../../devices/stores/captureStore";
 import {
   generate45DaySensorData,
+  generateHourlySensorData,
   calculateTelemetryInsights,
   DailySensorLog,
+  HourlySensorLog,
   TelemetryInsights,
 } from "../mock/mockSensorData";
 
@@ -13,6 +15,7 @@ export interface InsightsData {
   totalCaptures: number;
   totalDuration: number;
   sensorLogs: DailySensorLog[];
+  hourlyLogs: HourlySensorLog[];
   telemetryInsights: TelemetryInsights;
 }
 
@@ -22,6 +25,11 @@ export function useInsightsData(): InsightsData {
   // Load 45-day mock sensor logs
   const sensorLogs = useMemo(() => {
     return generate45DaySensorData();
+  }, []);
+
+  // Load 24 hourly mock sensor logs for "Today"
+  const hourlyLogs = useMemo(() => {
+    return generateHourlySensorData();
   }, []);
 
   // Calculate telemetry insights
@@ -46,6 +54,7 @@ export function useInsightsData(): InsightsData {
     totalCaptures,
     totalDuration,
     sensorLogs,
+    hourlyLogs,
     telemetryInsights,
   };
 }

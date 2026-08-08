@@ -8,6 +8,14 @@ export interface DailySensorLog {
   anomalyReason: string;
 }
 
+export interface HourlySensorLog {
+  time: string; // e.g. "09:00"
+  waterConsumedLiters: number;
+  temperature: number;
+  humidity: number;
+  tvoc: number;
+}
+
 export function generate45DaySensorData(): DailySensorLog[] {
   const data: DailySensorLog[] = [];
   const now = new Date();
@@ -64,6 +72,54 @@ export function generate45DaySensorData(): DailySensorLog[] {
       averageTVOC: tvoc,
       isAnomaly,
       anomalyReason,
+    });
+  }
+
+  return data;
+}
+
+export function generateHourlySensorData(): HourlySensorLog[] {
+  const data: HourlySensorLog[] = [];
+  const baseTemp = 22.0;
+  const baseHumidity = 55;
+  const baseTVOC = 220;
+
+  for (let hour = 0; hour < 24; hour++) {
+    const timeLabel = `${hour.toString().padStart(2, "0")}:00`;
+    
+    // Smooth temperature variance: coldest at 5 AM, warmest at 3 PM
+    const tempOffset = Math.sin(((hour - 9) / 24) * 2 * Math.PI) * 4;
+    const temp = Math.round((baseTemp + tempOffset) * 10) / 10;
+
+    // Inverse humidity relationship: highest at night, lowest in afternoon
+    const humOffset = Math.sin(((hour - 21) / 24) * 2 * Math.PI) * 10;
+    const humidity = Math.round(baseHumidity + humOffset);
+
+    // TVOC spikes during cooking hours (8 AM, 1 PM, 7 PM)
+    let tvoc = baseTVOC + Math.round(Math.random() * 20);
+    if (hour === 8 || hour === 9) tvoc += 140;
+    if (hour === 13 || hour === 14) tvoc += 90;
+    if (hour === 19 || hour === 20) tvoc += 180;
+
+    // Water flow rates: big morning peak (7-9 AM) and evening peak (6-8 PM)
+    let water = 1.2; // base background flow
+    if (hour === 7) water = 28.5; // Morning shower/wash
+    if (hour === 8) water = 34.2;
+    if (hour === 9) water = 12.0;
+    if (hour === 12 || hour === 13) water = 8.5; // Lunch
+    if (hour === 18) water = 16.4; // Dinner prep/dishes
+    if (hour === 19) water = 22.8;
+    if (hour === 20) water = 14.5;
+    
+    // Add minor random noise
+    water = Math.round((water + Math.random() * 1.5) * 10) / 10;
+
+    data.push({
+      time: timeLabel,
+      waterConsumedLiters: water,
+      temperature: temp,
+      humidity: humidity,
+      tvoc,
     });
   }
 
