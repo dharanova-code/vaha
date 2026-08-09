@@ -1,7 +1,8 @@
 {
   "gradle.nestedProjects": false,
   "gradle.ignoredProjects": [
-    "node_modules/**"
+    "node_modules/**",
+    "node_modules/@react-native/gradle-plugin/**"
   ],
   "files.exclude": {
     "**/node_modules": true
