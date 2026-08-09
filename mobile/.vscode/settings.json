@@ -1,0 +1,9 @@
+{
+  "gradle.nestedProjects": false,
+  "gradle.ignoredProjects": [
+    "node_modules/**"
+  ],
+  "files.exclude": {
+    "**/node_modules": true
+  }
+}
