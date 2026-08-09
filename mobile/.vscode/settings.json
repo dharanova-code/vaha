@@ -1,4 +1,5 @@
 {
+  "gradle.autoDetect": "off",
   "gradle.nestedProjects": false,
   "gradle.ignoredProjects": [
     "node_modules/**",
