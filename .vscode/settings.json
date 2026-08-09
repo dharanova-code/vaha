@@ -1,0 +1,12 @@
+{
+  "gradle.nestedProjects": false,
+  "gradle.ignoredProjects": [
+    "mobile/node_modules/**",
+    "mobile/node_modules/@react-native/gradle-plugin/**",
+    "node_modules/**"
+  ],
+  "files.exclude": {
+    "**/node_modules": true
+  },
+  "java.compile.nullAnalysis.mode": "automatic"
+}
