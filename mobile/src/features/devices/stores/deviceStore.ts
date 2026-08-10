@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { DeviceStatus, LiveSensorReading } from "../models/DeviceStatus";
 import { Container } from "@core/di/Container";
 import { DeviceClient } from "../client/DeviceClient";
+import { Database } from "@infra/database/config/Database";
 
 export interface DeviceState {
   connectionStatus: "disconnected" | "connecting" | "connected" | "error";
@@ -62,7 +63,29 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
     
     const result = await client.getSensors();
     if (result.isSuccess) {
-      set({ liveSensors: result.getValueOrThrow() });
+      const reading = result.getValueOrThrow();
+      set({ liveSensors: reading });
+      
+      // Store locally in the SQLite database
+      try {
+        const expoDb = Database.getInstance().getExpoDb();
+        const timestampMs = new Date(reading.sampled_at).getTime();
+        
+        expoDb.runSync(
+          `INSERT INTO sensor_logs (timestamp, temperature, humidity, voc, flow_rate, accumulated_volume)
+           VALUES (?, ?, ?, ?, ?, ?);`,
+          [
+            timestampMs,
+            reading.temperature_celsius,
+            reading.humidity_percentage,
+            reading.voc_parts_per_billion,
+            reading.flow_rate_liters_per_minute,
+            reading.accumulated_volume_liters,
+          ]
+        );
+      } catch (err) {
+        console.warn("[DeviceStore] Failed to write sensor log to local database", err);
+      }
     }
   },
 
