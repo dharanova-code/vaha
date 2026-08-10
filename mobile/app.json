@@ -20,7 +20,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FAF8F5"
       },
-      "package": "com.vaha.companion"
+      "package": "com.vaha.companion",
+      "usesCleartextTraffic": true
     },
     "notification": {
       "icon": "./assets/notification-icon.png",
