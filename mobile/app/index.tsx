@@ -7,7 +7,7 @@ export default function EntryRedirect() {
   const mmkv = getStorageService();
   const isOnboarded = mmkv.getString(STORAGE_KEYS.IS_ONBOARDED) === "true";
 
-  if (!isOnboarded && !__DEV__) {
+  if (!isOnboarded) {
     return <Redirect href={"/onboarding" as any} />;
   }
 
