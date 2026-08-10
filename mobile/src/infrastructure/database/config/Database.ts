@@ -43,6 +43,19 @@ export class Database {
       // Configure Write-Ahead Logging (WAL) for better performance on local devices
       this.expoDb.execSync("PRAGMA journal_mode = WAL;");
 
+      // Dynamically initialize sensor_logs table
+      this.expoDb.execSync(`
+        CREATE TABLE IF NOT EXISTS sensor_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          temperature REAL,
+          humidity REAL,
+          voc REAL,
+          flow_rate REAL,
+          accumulated_volume REAL
+        );
+      `);
+
       this.drizzleDb = drizzle(this.expoDb, { schema });
     } catch (error) {
       throw error;
