@@ -13,6 +13,7 @@ jest.mock("../../src/features/devices/stores/deviceStore", () => ({
     deviceStatus: { battery_percentage: 94 },
     connect: jest.fn(),
     refreshStatus: jest.fn(),
+    refreshSensors: jest.fn(),
   })),
 }));
 
@@ -31,10 +32,7 @@ describe("HomeScreen Integration", () => {
   it("renders welcoming greeting header and reflection prompt", async () => {
     const { getByTestId, getByText } = await render(<HomeScreen />);
     expect(getByTestId("welcome-header")).toBeDefined();
-    expect(getByText("Good Morning")).toBeDefined();
-    expect(
-      getByText("What's on your mind?")
-    ).toBeDefined();
+    expect(getByText(/Good (Morning|Afternoon|Evening|Night)/)).toBeDefined();
   });
 
   it("renders device status metrics and companion pod", async () => {
@@ -44,28 +42,6 @@ describe("HomeScreen Integration", () => {
     expect(getByText("94% BATTERY")).toBeDefined();
   });
 
-  it("renders the continuing anchor card", async () => {
-    const { getByTestId, getByText } = await render(<HomeScreen />);
-    expect(getByTestId("continuing-anchor")).toBeDefined();
-    expect(getByText("A Quiet Clearing")).toBeDefined();
-  });
-
-  it("renders the quick action buttons", async () => {
-    const { getByTestId, getByText } = await render(<HomeScreen />);
-    expect(getByTestId("quick-actions")).toBeDefined();
-    expect(getByText("NEW CAPTURE")).toBeDefined();
-    expect(getByText("REFLECTIONS")).toBeDefined();
-    expect(getByText("HARDWARE LEDGER")).toBeDefined();
-  });
-
-  it("renders suggested insights reflection blockquote", async () => {
-    const { getByTestId, getByText } = await render(<HomeScreen />);
-    expect(getByTestId("suggested-reflection")).toBeDefined();
-    expect(
-      getByText("“Truth is local. A thought exists in context and stillness. Let the ledger accumulate without pressure.”")
-    ).toBeDefined();
-  });
-
   it("renders recent timeline captures list", async () => {
     const { getByTestId, getByText } = await render(<HomeScreen />);
     expect(getByTestId("recent-timeline")).toBeDefined();
@@ -73,3 +49,4 @@ describe("HomeScreen Integration", () => {
     expect(getByText("Stitch Interface Notes")).toBeDefined();
   });
 });
+

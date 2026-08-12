@@ -3,8 +3,9 @@ import { Container } from "@core/di/Container";
 import { CommunicationError } from "@core/errors/CommunicationError";
 import { DeviceStatus, LiveSensorReading, DeviceCaptureMetadata } from "../models/DeviceStatus";
 import { DeviceTransportFactory } from "../transport/DeviceTransportFactory";
-import { DeviceTransport } from "../transport/DeviceTransport";
+import { DeviceTransport, DeviceStream } from "../transport/DeviceTransport";
 import { DeviceDiscoveryService } from "../services/DeviceDiscoveryService";
+import { Logger } from "@core/logger/Logger";
 import {
   DEVICE_HTTP_PORT,
   DEV_STATIC_TOKEN,
@@ -39,11 +40,14 @@ class DeviceClientImpl implements DeviceClient {
   transport: DeviceTransport | null = null;
   private ip: string | null = null;
   private listeners: Set<SyncEventListener> = new Set();
+  private activeStream: DeviceStream | null = null;
+  private logger: Logger;
   
   private discoveryService: DeviceDiscoveryService;
   private transportFactory: DeviceTransportFactory;
 
   constructor() {
+    this.logger = Container.getInstance().resolve<Logger>("Logger");
     this.discoveryService = Container.getInstance().resolve("DeviceDiscoveryService");
     this.transportFactory = Container.getInstance().resolve("DeviceTransportFactory");
   }
@@ -73,12 +77,39 @@ class DeviceClientImpl implements DeviceClient {
 
     this.transport = transport;
     this.ip = ip;
+
+    // Open persistent WebSocket stream
+    try {
+      this.activeStream = this.transport.openStream(
+        "/ws",
+        (message) => {
+          this.listeners.forEach((listener) => {
+            try {
+              listener(message);
+            } catch (err) {
+              this.logger.error("[DeviceClient] WS listener error", err);
+            }
+          });
+        },
+        (error) => {
+          this.logger.error("[DeviceClient] WS stream error, disconnecting", error);
+          this.disconnect();
+        }
+      );
+    } catch (err) {
+      this.logger.error("[DeviceClient] Failed to open WS stream", err);
+    }
+
     return Result.ok(undefined);
   }
 
   async disconnect(): Promise<void> {
+    if (this.activeStream) {
+      this.activeStream.close();
+      this.activeStream = null;
+    }
     if (this.transport) {
-      this.transport.close();
+      await this.transport.close();
       this.transport = null;
       this.ip = null;
     }

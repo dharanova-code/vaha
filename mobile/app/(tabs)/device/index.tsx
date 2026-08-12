@@ -89,8 +89,8 @@ export default function DeviceScreen() {
 
   const [panelMode, setPanelMode] = useState<PanelMode | null>(null);
   const [bleTargetDevice, setBleTargetDevice] = useState<DiscoveredBleDevice | null>(null);
-  const [wifiSsid, setWifiSsid] = useState("");
-  const [wifiPass, setWifiPass] = useState("");
+  const [wifiSsid, setWifiSsid] = useState("AQ4-1");
+  const [wifiPass, setWifiPass] = useState("Arduino@123#");
   
   const [isScanningWifi, setIsScanningWifi] = useState(false);
   const [wifiNetworks, setWifiNetworks] = useState<{ssid: string, rssi: number, secure: boolean}[]>([]);

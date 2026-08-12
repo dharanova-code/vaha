@@ -33,7 +33,6 @@ export default function InsightsScreen() {
   // Presets: "today", 7 (days), 30 (days), "custom"
   const [timeRange, setTimeRange] = useState<"today" | 7 | 30 | "custom">("today");
   const [envTab, setEnvTab] = useState<"temp_hum" | "tvoc">("temp_hum");
-  const [mode, setMode] = useState<"ai" | "kids">("ai");
 
   // Dynamic layout measurement to prevent graph box overflow on any mobile screen size
   const [chartWidth, setChartWidth] = useState(SCREEN_WIDTH - CONTAINER_PADDING * 2 - 80);
@@ -191,28 +190,7 @@ export default function InsightsScreen() {
     }
   }, [filteredLogs, hourlyLogs, timeRange, envTab, envBounds, chartWidth]);
 
-  // Kids Sustainability Story config
-  const kidsStory = useMemo(() => {
-    const consumed = timeRange === "today" ? hourlyLogs.reduce((sum, item) => sum + item.waterConsumedLiters, 0) : lastLog.waterConsumedLiters;
-    const value = Math.round(consumed * 10) / 10;
-    if (isHighWater) {
-      return {
-        title: "Oh No! A Big Splash Day! 🚨",
-        message: `We used ${value}L of water today—that's enough to fill 4 giant swimming pools! If we waste it, the little ducklings in the forest pond won't have enough water to swim. Let's turn off the taps tight! 🦆💚`,
-        color: "#FEF3C7",
-        borderColor: "#F59E0B",
-        emoji: "🦆",
-      };
-    } else {
-      return {
-        title: "Yay! You Saved The Frogs! 🐸🎉",
-        message: `Superstar! We used only ${value}L of water today. Because you kept your water use low, the Blue Forest River is flowing happily, keeping 12 little frogs safe and cool! 🐸💎`,
-        color: "#ECFDF5",
-        borderColor: "#10B981",
-        emoji: "🐸",
-      };
-    }
-  }, [isHighWater, lastLog, hourlyLogs, timeRange]);
+
 
   // Handle graph touch/scrub gesture calculation
   const handleGraphTouch = (locationX: number) => {
@@ -346,61 +324,7 @@ export default function InsightsScreen() {
         </Card>
       )}
 
-      {/* 3. Sustainable Insights Mode Selector */}
-      <View style={styles.modeContainer}>
-        <TouchableOpacity
-          style={[styles.modeTabButton, mode === "ai" && styles.modeTabButtonActive]}
-          onPress={() => setMode("ai")}
-        >
-          <Icon name="activity" size={16} color={mode === "ai" ? "#FAF8F5" : colors.text.muted} />
-          <Text variant="label-sm" style={[styles.modeTabText, mode === "ai" && styles.modeTabTextActive]}>
-            AI Advisor
-          </Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.modeTabButton, mode === "kids" && styles.modeTabButtonActive]}
-          onPress={() => setMode("kids")}
-        >
-          <Icon name="smile" size={16} color={mode === "kids" ? "#FAF8F5" : colors.text.muted} />
-          <Text variant="label-sm" style={[styles.modeTabText, mode === "kids" && styles.modeTabTextActive]}>
-            Kids Story Mode
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 4. Advisor / Stories Detail Card */}
-      {mode === "ai" ? (
-        <Card style={[styles.advisorCard, isHighWater ? styles.advisorWarning : styles.advisorNormal]}>
-          <View style={styles.advisorHeader}>
-            <View style={[styles.iconBadge, isHighWater ? styles.badgeWarning : styles.badgeNormal]}>
-              <Icon
-                name={isHighWater ? "alert-circle" : "check-circle"}
-                size={18}
-                color={isHighWater ? colors.semantic.warning : colors.semantic.success}
-              />
-            </View>
-            <Text variant="headline-lg" style={styles.advisorTitle}>
-              {isHighWater ? "Abnormal Water Usage Detected" : "Water Flow Is Optimal"}
-            </Text>
-          </View>
-          <Text variant="body-md" style={styles.advisorText}>
-            {isHighWater
-              ? `Water consumption spiked above normal average levels. Review your recent telemetry chart to identify leakage times.`
-              : `Water consumption is stable. Today's usage aligns perfectly with your average sustainability baseline.`}
-          </Text>
-        </Card>
-      ) : (
-        <View style={[styles.kidsStoryCard, { backgroundColor: kidsStory.color, borderColor: kidsStory.borderColor }]}>
-          <View style={styles.kidsStoryHeader}>
-            <Text variant="headline-lg" style={styles.kidsStoryEmoji}>{kidsStory.emoji}</Text>
-            <Text variant="headline-lg" style={styles.kidsStoryTitle}>
-              {kidsStory.title}
-            </Text>
-          </View>
-          <Text variant="body-md" style={styles.kidsStoryText}>{kidsStory.message}</Text>
-        </View>
-      )}
 
       {/* 5. Chart A: Water Consumption Trends */}
       <SectionHeader title={timeRange === "today" ? "Hourly Water Flow rate" : "Water Consumption Trends"} />
