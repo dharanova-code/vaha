@@ -24,78 +24,82 @@ export interface InsightsData {
 export function useInsightsData(): InsightsData {
   const { captures, isLoading } = useCaptureStore();
   const { liveSensors } = useDeviceStore();
-  const [dbLogs, setDbLogs] = useState<any[]>([]);
+  
+  const [dailyAggs, setDailyAggs] = useState<any[]>([]);
+  const [hourlyAggs, setHourlyAggs] = useState<any[]>([]);
 
-  // Load real logs from SQLite database on mount or when live sensors are updated
+  // Load aggregated logs from SQLite database on mount or when live sensors are updated
   useEffect(() => {
     try {
       const expoDb = Database.getInstance().getExpoDb();
-      const rows = expoDb.getAllSync<any>(
-        "SELECT * FROM sensor_logs ORDER BY timestamp ASC;"
-      );
-      setDbLogs(rows || []);
+      
+      // 1. Fetch daily aggregates
+      const dailyRows = expoDb.getAllSync<any>(`
+        SELECT 
+          date(timestamp / 1000, 'unixepoch', 'localtime') as dayDate,
+          avg(temperature) as avg_temp,
+          avg(humidity) as avg_hum,
+          avg(voc) as avg_voc,
+          sum(flow_rate) as total_flow_rate,
+          max(accumulated_volume) as max_vol,
+          min(accumulated_volume) as min_vol
+        FROM sensor_logs
+        GROUP BY dayDate
+        ORDER BY dayDate ASC;
+      `);
+      setDailyAggs(dailyRows || []);
+
+      // 2. Fetch hourly aggregates for today
+      const hourlyRows = expoDb.getAllSync<any>(`
+        SELECT 
+          cast(strftime('%H', timestamp / 1000, 'unixepoch', 'localtime') as integer) as hourVal,
+          avg(temperature) as avg_temp,
+          avg(humidity) as avg_hum,
+          avg(voc) as avg_voc,
+          sum(flow_rate) as total_flow_rate,
+          max(accumulated_volume) as max_vol,
+          min(accumulated_volume) as min_vol
+        FROM sensor_logs
+        WHERE date(timestamp / 1000, 'unixepoch', 'localtime') = date('now', 'localtime')
+        GROUP BY hourVal
+        ORDER BY hourVal ASC;
+      `);
+      setHourlyAggs(hourlyRows || []);
     } catch (err) {
-      console.warn("[useInsightsData] Failed to load sensor logs from SQLite", err);
+      console.warn("[useInsightsData] Failed to load aggregated sensor logs from SQLite", err);
     }
   }, [liveSensors]);
 
-  // Merge real SQLite logs into 45-day daily logs
+  // Merge real SQLite daily aggregates into 45-day daily logs
   const sensorLogs = useMemo(() => {
     const mockLogs = generate45DaySensorData();
-    if (dbLogs.length === 0) return mockLogs;
+    if (dailyAggs.length === 0) return mockLogs;
 
     return mockLogs.map((mockLog) => {
-      // Filter dbLogs belonging to this calendar date
-      const dayLogs = dbLogs.filter((dbLog) => {
-        const dbDate = new Date(dbLog.timestamp);
-        const dbDateLabel = dbDate.toLocaleDateString("en-US", {
-          month: "short",
-          day: "2-digit",
-        });
-        return dbDateLabel === mockLog.date;
-      });
-
-      if (dayLogs.length === 0) {
-        return mockLog;
-      }
-
-      let tempSum = 0, tempCount = 0;
-      let humSum = 0, humCount = 0;
-      let vocSum = 0, vocCount = 0;
-      let flowRateSum = 0;
-      let maxAccVol = 0, minAccVol = Infinity;
-
-      dayLogs.forEach((l) => {
-        if (l.temperature !== null && l.temperature !== undefined) {
-          tempSum += l.temperature;
-          tempCount++;
-        }
-        if (l.humidity !== null && l.humidity !== undefined) {
-          humSum += l.humidity;
-          humCount++;
-        }
-        if (l.voc !== null && l.voc !== undefined) {
-          vocSum += l.voc;
-          vocCount++;
-        }
-        if (l.flow_rate !== null && l.flow_rate !== undefined) {
-          flowRateSum += l.flow_rate;
-        }
-        if (l.accumulated_volume !== null && l.accumulated_volume !== undefined) {
-          if (l.accumulated_volume > maxAccVol) maxAccVol = l.accumulated_volume;
-          if (l.accumulated_volume < minAccVol) minAccVol = l.accumulated_volume;
+      // Find matching date row
+      const match = dailyAggs.find((row) => {
+        try {
+          const dateObj = new Date(row.dayDate + "T00:00:00");
+          const rowLabel = dateObj.toLocaleDateString("en-US", {
+            month: "short",
+            day: "2-digit",
+          });
+          return rowLabel === mockLog.date;
+        } catch {
+          return false;
         }
       });
 
-      const averageTemperature = tempCount > 0 ? Math.round((tempSum / tempCount) * 10) / 10 : mockLog.averageTemperature;
-      const averageHumidity = humCount > 0 ? Math.round(humSum / humCount) : mockLog.averageHumidity;
-      const averageTVOC = vocCount > 0 ? Math.round(vocSum / vocCount) : mockLog.averageTVOC;
+      if (!match) return mockLog;
 
-      const waterFromFlow = flowRateSum / 6; // Polled every 10s -> flow_rate * (10s/60s)
-      const waterFromVolume = minAccVol !== Infinity ? (maxAccVol - minAccVol) : 0;
+      const averageTemperature = match.avg_temp != null ? Math.round(match.avg_temp * 10) / 10 : mockLog.averageTemperature;
+      const averageHumidity = match.avg_hum != null ? Math.round(match.avg_hum) : mockLog.averageHumidity;
+      const averageTVOC = match.avg_voc != null ? Math.round(match.avg_voc) : mockLog.averageTVOC;
+
+      const waterFromFlow = match.total_flow_rate != null ? match.total_flow_rate / 6 : 0;
+      const waterFromVolume = (match.max_vol != null && match.min_vol != null) ? (match.max_vol - match.min_vol) : 0;
       const waterConsumedLiters = Math.round(Math.max(waterFromFlow, waterFromVolume) * 10) / 10;
 
-      // Anomaly detection for real daily usage
       const isAnomaly = waterConsumedLiters > 150;
       const anomalyReason = isAnomaly ? "High water consumption detected" : "";
 
@@ -109,75 +113,28 @@ export function useInsightsData(): InsightsData {
         anomalyReason: anomalyReason || mockLog.anomalyReason,
       };
     });
-  }, [dbLogs]);
+  }, [dailyAggs]);
 
-  // Merge real SQLite logs into 24-hour hourly logs
+  // Merge real SQLite hourly aggregates into 24-hour hourly logs
   const hourlyLogs = useMemo(() => {
     const mockHourly = generateHourlySensorData();
-    if (dbLogs.length === 0) return mockHourly;
+    const currentHour = new Date().getHours();
+    const activeHourly = mockHourly.slice(0, currentHour + 1);
+    
+    if (hourlyAggs.length === 0) return activeHourly;
 
-    // Filter dbLogs to only today's logs
-    const todayLabel = new Date().toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-    });
-
-    const todayDbLogs = dbLogs.filter((dbLog) => {
-      const dbDate = new Date(dbLog.timestamp);
-      const dbDateLabel = dbDate.toLocaleDateString("en-US", {
-        month: "short",
-        day: "2-digit",
-      });
-      return dbDateLabel === todayLabel;
-    });
-
-    if (todayDbLogs.length === 0) return mockHourly;
-
-    return mockHourly.map((mockHour) => {
+    return activeHourly.map((mockHour) => {
       const hourNum = parseInt(mockHour.time.split(":")[0]!, 10);
-      const hourLogs = todayDbLogs.filter((l) => {
-        const dbDate = new Date(l.timestamp);
-        return dbDate.getHours() === hourNum;
-      });
+      const match = hourlyAggs.find((row) => row.hourVal === hourNum);
 
-      if (hourLogs.length === 0) {
-        return mockHour;
-      }
+      if (!match) return mockHour;
 
-      let tempSum = 0, tempCount = 0;
-      let humSum = 0, humCount = 0;
-      let vocSum = 0, vocCount = 0;
-      let flowRateSum = 0;
-      let maxAccVol = 0, minAccVol = Infinity;
+      const temperature = match.avg_temp != null ? Math.round(match.avg_temp * 10) / 10 : mockHour.temperature;
+      const humidity = match.avg_hum != null ? Math.round(match.avg_hum) : mockHour.humidity;
+      const tvoc = match.avg_voc != null ? Math.round(match.avg_voc) : mockHour.tvoc;
 
-      hourLogs.forEach((l) => {
-        if (l.temperature !== null && l.temperature !== undefined) {
-          tempSum += l.temperature;
-          tempCount++;
-        }
-        if (l.humidity !== null && l.humidity !== undefined) {
-          humSum += l.humidity;
-          humCount++;
-        }
-        if (l.voc !== null && l.voc !== undefined) {
-          vocSum += l.voc;
-          vocCount++;
-        }
-        if (l.flow_rate !== null && l.flow_rate !== undefined) {
-          flowRateSum += l.flow_rate;
-        }
-        if (l.accumulated_volume !== null && l.accumulated_volume !== undefined) {
-          if (l.accumulated_volume > maxAccVol) maxAccVol = l.accumulated_volume;
-          if (l.accumulated_volume < minAccVol) minAccVol = l.accumulated_volume;
-        }
-      });
-
-      const temperature = tempCount > 0 ? Math.round((tempSum / tempCount) * 10) / 10 : mockHour.temperature;
-      const humidity = humCount > 0 ? Math.round(humSum / humCount) : mockHour.humidity;
-      const tvoc = vocCount > 0 ? Math.round(vocSum / vocCount) : mockHour.tvoc;
-
-      const waterFromFlow = flowRateSum / 6;
-      const waterFromVolume = minAccVol !== Infinity ? (maxAccVol - minAccVol) : 0;
+      const waterFromFlow = match.total_flow_rate != null ? match.total_flow_rate / 6 : 0;
+      const waterFromVolume = (match.max_vol != null && match.min_vol != null) ? (match.max_vol - match.min_vol) : 0;
       const waterConsumedLiters = Math.round(Math.max(waterFromFlow, waterFromVolume) * 10) / 10;
 
       return {
@@ -188,7 +145,7 @@ export function useInsightsData(): InsightsData {
         tvoc,
       };
     });
-  }, [dbLogs]);
+  }, [hourlyAggs]);
 
   // Calculate telemetry insights from merged data
   const telemetryInsights = useMemo(() => {
