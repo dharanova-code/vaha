@@ -9,6 +9,56 @@ import CaptureDetailsModal from "../../app/(modals)/capture-details";
 import NotFoundScreen from "../../app/404";
 import { AuthGuardPlaceholder } from "../../src/core/navigation/NavigationGuard";
 
+// Mock expo-sqlite to avoid initializing Native Modules in node test environment
+jest.mock("expo-sqlite", () => ({
+  openDatabaseSync: jest.fn(() => ({
+    execSync: jest.fn(),
+    closeSync: jest.fn(),
+    getAllSync: jest.fn(() => []),
+  })),
+}));
+
+// Mock react-native-svg to bypass Mixin resolution issues in Node test environment
+jest.mock("react-native-svg", () => {
+  const mockReact = require("react");
+  const Svg = ({ children }: { children?: unknown }) => mockReact.createElement("svg", null, children);
+  const Path = () => null;
+  const Line = () => null;
+  const Circle = () => null;
+  const Defs = () => null;
+  const LinearGradient = () => null;
+  const Stop = () => null;
+  return {
+    __esModule: true,
+    default: Svg,
+    Path,
+    Line,
+    Circle,
+    Defs,
+    LinearGradient,
+    Stop,
+  };
+});
+
+// Mock expo-image-picker to avoid Native Module resolution issues in Node test environment
+jest.mock("expo-image-picker", () => ({
+  launchImageLibraryAsync: jest.fn(),
+  requestMediaLibraryPermissionsAsync: jest.fn(),
+}));
+
+// Mock expo-audio and expo-av
+jest.mock("expo-audio", () => ({
+  Audio: {
+    Sound: jest.fn(),
+  },
+}));
+jest.mock("expo-av", () => ({
+  Audio: {
+    Sound: jest.fn(),
+  },
+}));
+
+
 // Mock react-native completely to avoid mock constructor issues in SDK 54/RN 0.81
 // The issue is that jest.requireActual('react-native') spreads mocked components
 // (ActivityIndicator, Text, etc.) that fail with constructor errors in this version.

@@ -36,6 +36,42 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
       set({ connectionStatus: "connected", lastError: null });
       get().refreshStatus();
       get().refreshSensors();
+
+      // Clean up previous subscription if any
+      if ((get() as any)._unsubscribeWebSocket) {
+        (get() as any)._unsubscribeWebSocket();
+      }
+
+      // Subscribe to WebSocket telemetry updates
+      const unsubscribe = client.subscribe((msg: any) => {
+        if (msg && msg.type === "telemetry") {
+          const reading = msg.payload as LiveSensorReading;
+          set({ liveSensors: reading });
+
+          // Store locally in the SQLite database
+          try {
+            const expoDb = Database.getInstance().getExpoDb();
+            const timestampMs = new Date(reading.sampled_at).getTime();
+            
+            expoDb.runSync(
+              `INSERT INTO sensor_logs (timestamp, temperature, humidity, voc, flow_rate, accumulated_volume)
+               VALUES (?, ?, ?, ?, ?, ?);`,
+              [
+                timestampMs,
+                reading.temperature_celsius,
+                reading.humidity_percentage,
+                reading.voc_parts_per_billion,
+                reading.flow_rate_liters_per_minute,
+                reading.accumulated_volume_liters,
+              ]
+            );
+          } catch (err) {
+            console.warn("[DeviceStore] Failed to write live sensor log to local database", err);
+          }
+        }
+      });
+
+      (get() as any)._unsubscribeWebSocket = unsubscribe;
     } else {
       set({ connectionStatus: "error", lastError: result.getErrorOrThrow().message });
     }
@@ -44,6 +80,12 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
   disconnect: async () => {
     const client = Container.getInstance().resolve<DeviceClient>("DeviceClient");
     await client.disconnect();
+    
+    if ((get() as any)._unsubscribeWebSocket) {
+      (get() as any)._unsubscribeWebSocket();
+      (get() as any)._unsubscribeWebSocket = null;
+    }
+
     set({ connectionStatus: "disconnected", deviceStatus: null, liveSensors: null });
   },
 

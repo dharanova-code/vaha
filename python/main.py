@@ -56,13 +56,13 @@ WHISPER_MODEL_DIR  = "/app/models/faster-whisper"
 WHISPER_MODEL_NAME = os.environ.get("WHISPER_MODEL_NAME", "base.en")
 EIM_PATH           = os.environ.get("EIM_PATH", "models/new-marvin.eim")
 STOP_KEYWORD       = os.environ.get("STOP_KEYWORD", "im_done")
-STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.88"))
-STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "3"))      # detections needed in window
+STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.80"))
+STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "1"))      # detections needed in window
 STOP_WINDOW        = int(os.environ.get("STOP_WINDOW", "6"))       # sliding window size (frames)
 MIC_RATE           = 48000
 PYAUDIO_DEV        = 1  # CS202 mic
-WAKE_THRESHOLD     = float(os.environ.get("WAKE_THRESHOLD", "0.82"))
-WAKE_CONSEC        = int(os.environ.get("WAKE_CONSEC", "2"))
+WAKE_THRESHOLD     = float(os.environ.get("WAKE_THRESHOLD", "0.75"))
+WAKE_CONSEC        = int(os.environ.get("WAKE_CONSEC", "1"))
 WAKE_COOLDOWN      = 3.0
 STOP_PHRASES       = ["i'm done","im done","i am done","that's all","thats all","that is all"]
 
@@ -611,11 +611,11 @@ def record_thought(device):
                     if now - start > 4.0 and has_voice:
                         best_label, score, latency = stop_detector.classify(stop_buf.tolist())
                         
-                        slot = score if (best_label == STOP_KEYWORD and score >= 0.92) else 0.0
+                        slot = score if (best_label == STOP_KEYWORD and score >= STOP_THRESHOLD) else 0.0
                         stop_window.append(slot)
                         
                         hits = sum(1 for s in stop_window if s > 0)
-                        if hits >= 4:  # Require 4 out of 6 frames above 0.92
+                        if hits >= STOP_CONSEC:  # Use configurable consecutive detection count
                             best_score = max(s for s in stop_window if s > 0)
                             print(f"[info] [inference] Stop keyword '{STOP_KEYWORD}' confirmed: {hits}/{STOP_WINDOW} frames (score={best_score:.4f})", flush=True)
                             print(f"[info] [record] Stop keyword triggered stop recording.", flush=True)

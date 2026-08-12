@@ -38,6 +38,7 @@ def _get_whisper():
     if _whisper_model is None:
         with _whisper_lock:
             if _whisper_model is None:
+                from faster_whisper import WhisperModel
                 model_name = os.environ.get("WHISPER_MODEL_NAME", "base.en")
                 whisper_dir = os.environ.get(
                     "WHISPER_MODEL_DIR",
@@ -112,29 +113,52 @@ async def transcribe_audio(
             tmp.write(content)
             tmp_path = tmp.name
 
-        # Decode WAV
-        import wave
-        with wave.open(tmp_path, "rb") as wf:
-            sr = wf.getframerate()
-            n_channels = wf.getnchannels()
-            n_frames = wf.getnframes()
-            raw_data = wf.readframes(n_frames)
-            audio_np = np.frombuffer(raw_data, dtype=np.int16)
+        # Try decoding as standard WAV first
+        try:
+            import wave
+            with wave.open(tmp_path, "rb") as wf:
+                sr = wf.getframerate()
+                n_channels = wf.getnchannels()
+                n_frames = wf.getnframes()
+                raw_data = wf.readframes(n_frames)
+                audio_np = np.frombuffer(raw_data, dtype=np.int16)
 
-        # Ensure mono
-        if n_channels > 1:
-            audio_np = audio_np.reshape(-1, n_channels).mean(axis=1).astype(np.int16)
+            if n_channels > 1:
+                audio_np = audio_np.reshape(-1, n_channels).mean(axis=1).astype(np.int16)
 
-        duration = len(audio_np) / sr
+            # Resample to 16 kHz if needed
+            if sr != 16000:
+                from scipy.signal import resample_poly
+                import math
+                gcd = math.gcd(sr, 16000)
+                audio_np = resample_poly(
+                    audio_np.astype(np.float32), 16000 // gcd, sr // gcd
+                ).astype(np.int16)
 
-        # Resample to 16 kHz if needed
-        if sr != 16000:
-            from scipy.signal import resample_poly
-            import math
-            gcd = math.gcd(sr, 16000)
-            audio_np = resample_poly(
-                audio_np.astype(np.float32), 16000 // gcd, sr // gcd
-            ).astype(np.int16)
+            duration = len(audio_np) / 16000
+        except Exception as wav_err:
+            # Fallback to PyAV for decoding (e.g. AAC/M4A disguised as WAV)
+            print(f"[captures] WAV decode failed ({wav_err}), falling back to PyAV...", flush=True)
+            import av
+            container = av.open(tmp_path)
+            stream = container.streams.audio[0]
+            resampler = av.AudioResampler(
+                format='s16',
+                layout='mono',
+                rate=16000
+            )
+            chunks = []
+            for frame in container.decode(stream):
+                resampled = resampler.resample(frame)
+                for r_frame in resampled:
+                    arr = r_frame.to_ndarray()
+                    chunks.append(arr.ravel())
+            
+            if not chunks:
+                raise ValueError("No audio frames decoded from file")
+                
+            audio_np = np.concatenate(chunks).astype(np.int16)
+            duration = len(audio_np) / 16000
 
         transcript = _transcribe_audio(audio_np)
 
