@@ -45,7 +45,8 @@ export default function InsightsScreen() {
   const [isSelectingEndDate, setIsSelectingEndDate] = useState(false);
 
   // Touch tracking state for interactive graph scrubbing
-  const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
+  const [activeWaterPointIndex, setActiveWaterPointIndex] = useState<number | null>(null);
+  const [activeEnvPointIndex, setActiveEnvPointIndex] = useState<number | null>(null);
 
   // Filter daily sensor logs based on selected range/custom dates
   const filteredLogs = useMemo<DailySensorLog[]>(() => {
@@ -193,18 +194,32 @@ export default function InsightsScreen() {
 
 
   // Handle graph touch/scrub gesture calculation
-  const handleGraphTouch = (locationX: number) => {
+  const handleWaterGraphTouch = (locationX: number) => {
     const list = timeRange === "today" ? hourlyLogs : filteredLogs;
     if (list.length <= 1) return;
 
     if (locationX < 0 || locationX > chartWidth) {
-      setActivePointIndex(null);
+      setActiveWaterPointIndex(null);
       return;
     }
 
     let index = Math.round((locationX / chartWidth) * (list.length - 1));
     index = Math.max(0, Math.min(list.length - 1, index));
-    setActivePointIndex(index);
+    setActiveWaterPointIndex(index);
+  };
+
+  const handleEnvGraphTouch = (locationX: number) => {
+    const list = timeRange === "today" ? hourlyLogs : filteredLogs;
+    if (list.length <= 1) return;
+
+    if (locationX < 0 || locationX > chartWidth) {
+      setActiveEnvPointIndex(null);
+      return;
+    }
+
+    let index = Math.round((locationX / chartWidth) * (list.length - 1));
+    index = Math.max(0, Math.min(list.length - 1, index));
+    setActiveEnvPointIndex(index);
   };
 
   const handleLayout = (event: LayoutChangeEvent) => {
@@ -214,44 +229,44 @@ export default function InsightsScreen() {
   };
 
   const activeWaterValue = useMemo(() => {
-    if (activePointIndex === null) return null;
+    if (activeWaterPointIndex === null) return null;
     if (timeRange === "today") {
-      return hourlyLogs[activePointIndex]?.waterConsumedLiters;
+      return hourlyLogs[activeWaterPointIndex]?.waterConsumedLiters;
     }
-    return filteredLogs[activePointIndex]?.waterConsumedLiters;
-  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+    return filteredLogs[activeWaterPointIndex]?.waterConsumedLiters;
+  }, [activeWaterPointIndex, hourlyLogs, filteredLogs, timeRange]);
 
   const activeWaterLabel = useMemo(() => {
-    if (activePointIndex === null) return "";
+    if (activeWaterPointIndex === null) return "";
     if (timeRange === "today") {
-      return hourlyLogs[activePointIndex]?.time || "";
+      return hourlyLogs[activeWaterPointIndex]?.time || "";
     }
-    return filteredLogs[activePointIndex]?.date || "";
-  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+    return filteredLogs[activeWaterPointIndex]?.date || "";
+  }, [activeWaterPointIndex, hourlyLogs, filteredLogs, timeRange]);
 
   const activeEnvLabel = useMemo(() => {
-    if (activePointIndex === null) return "";
+    if (activeEnvPointIndex === null) return "";
     const list = timeRange === "today" ? hourlyLogs : filteredLogs;
-    return timeRange === "today" ? (list[activePointIndex] as HourlySensorLog)?.time : (list[activePointIndex] as DailySensorLog)?.date;
-  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+    return timeRange === "today" ? (list[activeEnvPointIndex] as HourlySensorLog)?.time : (list[activeEnvPointIndex] as DailySensorLog)?.date;
+  }, [activeEnvPointIndex, hourlyLogs, filteredLogs, timeRange]);
 
   const activeEnvValue1 = useMemo(() => {
-    if (activePointIndex === null) return null;
+    if (activeEnvPointIndex === null) return null;
     const list = timeRange === "today" ? hourlyLogs : filteredLogs;
-    return timeRange === "today" ? (list[activePointIndex] as HourlySensorLog)?.temperature : (list[activePointIndex] as DailySensorLog)?.averageTemperature;
-  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+    return timeRange === "today" ? (list[activeEnvPointIndex] as HourlySensorLog)?.temperature : (list[activeEnvPointIndex] as DailySensorLog)?.averageTemperature;
+  }, [activeEnvPointIndex, hourlyLogs, filteredLogs, timeRange]);
 
   const activeEnvValue2 = useMemo(() => {
-    if (activePointIndex === null) return null;
+    if (activeEnvPointIndex === null) return null;
     const list = timeRange === "today" ? hourlyLogs : filteredLogs;
-    return timeRange === "today" ? (list[activePointIndex] as HourlySensorLog)?.humidity : (list[activePointIndex] as DailySensorLog)?.averageHumidity;
-  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+    return timeRange === "today" ? (list[activeEnvPointIndex] as HourlySensorLog)?.humidity : (list[activeEnvPointIndex] as DailySensorLog)?.averageHumidity;
+  }, [activeEnvPointIndex, hourlyLogs, filteredLogs, timeRange]);
 
   const activeTvocValue = useMemo(() => {
-    if (activePointIndex === null) return null;
+    if (activeEnvPointIndex === null) return null;
     const list = timeRange === "today" ? hourlyLogs : filteredLogs;
-    return timeRange === "today" ? (list[activePointIndex] as HourlySensorLog)?.tvoc : (list[activePointIndex] as DailySensorLog)?.averageTVOC;
-  }, [activePointIndex, hourlyLogs, filteredLogs, timeRange]);
+    return timeRange === "today" ? (list[activeEnvPointIndex] as HourlySensorLog)?.tvoc : (list[activeEnvPointIndex] as DailySensorLog)?.averageTVOC;
+  }, [activeEnvPointIndex, hourlyLogs, filteredLogs, timeRange]);
 
   return (
     <Screen scrollable style={styles.container}>
@@ -260,7 +275,7 @@ export default function InsightsScreen() {
         <View style={styles.segmentedControl}>
           <TouchableOpacity
             style={[styles.segmentButton, timeRange === "today" && styles.segmentButtonActive]}
-            onPress={() => { setTimeRange("today"); setActivePointIndex(null); }}
+            onPress={() => { setTimeRange("today"); setActiveWaterPointIndex(null); setActiveEnvPointIndex(null); }}
           >
             <Text variant="label-sm" style={[styles.segmentText, timeRange === "today" && styles.segmentTextActive]}>
               Today
@@ -269,7 +284,7 @@ export default function InsightsScreen() {
 
           <TouchableOpacity
             style={[styles.segmentButton, timeRange === 7 && styles.segmentButtonActive]}
-            onPress={() => { setTimeRange(7); setActivePointIndex(null); }}
+            onPress={() => { setTimeRange(7); setActiveWaterPointIndex(null); setActiveEnvPointIndex(null); }}
           >
             <Text variant="label-sm" style={[styles.segmentText, timeRange === 7 && styles.segmentTextActive]}>
               7 Days
@@ -278,7 +293,7 @@ export default function InsightsScreen() {
 
           <TouchableOpacity
             style={[styles.segmentButton, timeRange === 30 && styles.segmentButtonActive]}
-            onPress={() => { setTimeRange(30); setActivePointIndex(null); }}
+            onPress={() => { setTimeRange(30); setActiveWaterPointIndex(null); setActiveEnvPointIndex(null); }}
           >
             <Text variant="label-sm" style={[styles.segmentText, timeRange === 30 && styles.segmentTextActive]}>
               30 Days
@@ -287,7 +302,7 @@ export default function InsightsScreen() {
 
           <TouchableOpacity
             style={[styles.segmentButton, timeRange === "custom" && styles.segmentButtonActive]}
-            onPress={() => { setTimeRange("custom"); setActivePointIndex(null); }}
+            onPress={() => { setTimeRange("custom"); setActiveWaterPointIndex(null); setActiveEnvPointIndex(null); }}
           >
             <Text variant="label-sm" style={[styles.segmentText, timeRange === "custom" && styles.segmentTextActive]}>
               Custom
@@ -331,7 +346,7 @@ export default function InsightsScreen() {
       <View onLayout={handleLayout}>
         <Card style={styles.chartCard}>
           {/* Floating Interactive Tooltip */}
-          {activePointIndex !== null && activeWaterValue !== null ? (
+          {activeWaterPointIndex !== null && activeWaterValue !== null ? (
             <View style={styles.tooltipBubble}>
               <Text variant="label-sm" style={styles.tooltipText}>
                 {activeWaterLabel}: {activeWaterValue} L
@@ -343,7 +358,7 @@ export default function InsightsScreen() {
                 {timeRange === "today" ? "Flow Rate (Liters/hour)" : "Daily Volume (Liters)"}
               </Text>
               <Text variant="label-sm" style={styles.chartPeakLabel}>
-                {timeRange === "today" ? "Scrub graph to view hourly data" : `Peak: ${telemetryInsights.maxWaterLiters}L`}
+                {timeRange === "today" ? "" : `Peak: ${telemetryInsights.maxWaterLiters}L`}
               </Text>
             </View>
           )}
@@ -360,9 +375,9 @@ export default function InsightsScreen() {
             {/* SVG Canvas wrapped in a touch-sensitive View */}
             {waterChart.linePath ? (
               <View
-                onTouchStart={(e: GestureResponderEvent) => handleGraphTouch(e.nativeEvent.locationX)}
-                onTouchMove={(e: GestureResponderEvent) => handleGraphTouch(e.nativeEvent.locationX)}
-                onTouchEnd={() => setActivePointIndex(null)}
+                onTouchStart={(e: GestureResponderEvent) => handleWaterGraphTouch(e.nativeEvent.locationX)}
+                onTouchMove={(e: GestureResponderEvent) => handleWaterGraphTouch(e.nativeEvent.locationX)}
+                onTouchEnd={() => setActiveWaterPointIndex(null)}
               >
                 <Svg width={chartWidth} height={CHART_HEIGHT}>
                   <Defs>
@@ -404,20 +419,20 @@ export default function InsightsScreen() {
                   })}
 
                   {/* Interactive vertical scrub indicator */}
-                  {activePointIndex !== null && waterChart.points[activePointIndex] && (
+                  {activeWaterPointIndex !== null && waterChart.points[activeWaterPointIndex] && (
                     <>
                       <Line
-                        x1={waterChart.points[activePointIndex]!.x}
+                        x1={waterChart.points[activeWaterPointIndex]!.x}
                         y1={0}
-                        x2={waterChart.points[activePointIndex]!.x}
+                        x2={waterChart.points[activeWaterPointIndex]!.x}
                         y2={CHART_HEIGHT}
                         stroke={colors.accent.primary}
                         strokeWidth="1"
                         strokeDasharray="3 3"
                       />
                       <Circle
-                        cx={waterChart.points[activePointIndex]!.x}
-                        cy={waterChart.points[activePointIndex]!.y}
+                        cx={waterChart.points[activeWaterPointIndex]!.x}
+                        cy={waterChart.points[activeWaterPointIndex]!.y}
                         r="8"
                         fill={colors.accent.primary}
                         stroke="#FAF8F5"
@@ -472,7 +487,7 @@ export default function InsightsScreen() {
       </View>
 
       <Card style={styles.chartCard}>
-        {activePointIndex !== null ? (
+        {activeEnvPointIndex !== null ? (
           <View style={styles.tooltipBubble}>
             <Text variant="label-sm" style={styles.tooltipText}>
               {envTab === "temp_hum" ? (
@@ -497,7 +512,7 @@ export default function InsightsScreen() {
           ) : (
             <View style={styles.chartLabelRow}>
               <Text variant="label-sm" style={styles.chartSubLabel}>TVOC (parts per billion)</Text>
-              <Text variant="label-sm" style={styles.chartPeakLabel}>Scrub graph for air quality metrics</Text>
+              <Text variant="label-sm" style={styles.chartPeakLabel}></Text>
             </View>
           )
         )}
@@ -523,9 +538,9 @@ export default function InsightsScreen() {
           {/* Svg lines wrapped in a touch-sensitive View */}
           {envChart.line1 ? (
             <View
-              onTouchStart={(e: GestureResponderEvent) => handleGraphTouch(e.nativeEvent.locationX)}
-              onTouchMove={(e: GestureResponderEvent) => handleGraphTouch(e.nativeEvent.locationX)}
-              onTouchEnd={() => setActivePointIndex(null)}
+              onTouchStart={(e: GestureResponderEvent) => handleEnvGraphTouch(e.nativeEvent.locationX)}
+              onTouchMove={(e: GestureResponderEvent) => handleEnvGraphTouch(e.nativeEvent.locationX)}
+              onTouchEnd={() => setActiveEnvPointIndex(null)}
             >
               <Svg width={chartWidth} height={CHART_HEIGHT}>
                 {/* Grid Lines */}
@@ -539,20 +554,20 @@ export default function InsightsScreen() {
                     <Path d={envChart.line1} fill="none" stroke="#3B82F6" strokeWidth="2.2" />
 
                     {/* Active touch indicator */}
-                    {activePointIndex !== null && envChart.points1 && envChart.points1[activePointIndex] && (
+                    {activeEnvPointIndex !== null && envChart.points1 && envChart.points1[activeEnvPointIndex] && (
                       <>
                         <Line
-                          x1={envChart.points1[activePointIndex]!.x}
+                          x1={envChart.points1[activeEnvPointIndex]!.x}
                           y1={0}
-                          x2={envChart.points1[activePointIndex]!.x}
+                          x2={envChart.points1[activeEnvPointIndex]!.x}
                           y2={CHART_HEIGHT}
                           stroke={colors.accent.primary}
                           strokeWidth="1"
                           strokeDasharray="3 3"
                         />
-                        <Circle cx={envChart.points1[activePointIndex]!.x} cy={envChart.points1[activePointIndex]!.y} r="6" fill="#3B82F6" stroke="#FAF8F5" strokeWidth="2" />
-                        {envChart.points2 && envChart.points2[activePointIndex] && (
-                          <Circle cx={envChart.points2[activePointIndex]!.x} cy={envChart.points2[activePointIndex]!.y} r="6" fill="#10B981" stroke="#FAF8F5" strokeWidth="2" />
+                        <Circle cx={envChart.points1[activeEnvPointIndex]!.x} cy={envChart.points1[activeEnvPointIndex]!.y} r="6" fill="#3B82F6" stroke="#FAF8F5" strokeWidth="2" />
+                        {envChart.points2 && envChart.points2[activeEnvPointIndex] && (
+                          <Circle cx={envChart.points2[activeEnvPointIndex]!.x} cy={envChart.points2[activeEnvPointIndex]!.y} r="6" fill="#10B981" stroke="#FAF8F5" strokeWidth="2" />
                         )}
                       </>
                     )}
@@ -569,18 +584,18 @@ export default function InsightsScreen() {
                     <Path d={envChart.line1} fill="none" stroke="#A855F7" strokeWidth="2.2" />
 
                     {/* Active touch indicator */}
-                    {activePointIndex !== null && envChart.points1 && envChart.points1[activePointIndex] && (
+                    {activeEnvPointIndex !== null && envChart.points1 && envChart.points1[activeEnvPointIndex] && (
                       <>
                         <Line
-                          x1={envChart.points1[activePointIndex]!.x}
+                          x1={envChart.points1[activeEnvPointIndex]!.x}
                           y1={0}
-                          x2={envChart.points1[activePointIndex]!.x}
+                          x2={envChart.points1[activeEnvPointIndex]!.x}
                           y2={CHART_HEIGHT}
                           stroke={colors.accent.primary}
                           strokeWidth="1"
                           strokeDasharray="3 3"
                         />
-                        <Circle cx={envChart.points1[activePointIndex]!.x} cy={envChart.points1[activePointIndex]!.y} r="7" fill="#A855F7" stroke="#FAF8F5" strokeWidth="2" />
+                        <Circle cx={envChart.points1[activeEnvPointIndex]!.x} cy={envChart.points1[activeEnvPointIndex]!.y} r="7" fill="#A855F7" stroke="#FAF8F5" strokeWidth="2" />
                       </>
                     )}
                   </>
@@ -844,11 +859,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 12,
+    paddingLeft: 48,
   },
   chartLegendRow: {
     flexDirection: "row",
     gap: 16,
     marginBottom: 12,
+    paddingLeft: 48,
   },
   legendItem: {
     flexDirection: "row",
