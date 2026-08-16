@@ -60,7 +60,7 @@ STOP_THRESHOLD     = float(os.environ.get("STOP_THRESHOLD", "0.80"))
 STOP_CONSEC        = int(os.environ.get("STOP_CONSEC", "1"))      # detections needed in window
 STOP_WINDOW        = int(os.environ.get("STOP_WINDOW", "6"))       # sliding window size (frames)
 MIC_RATE           = 48000
-PYAUDIO_DEV        = 1  # CS202 mic
+PYAUDIO_DEV        = None  # Will be resolved dynamically by find_best_mic()
 WAKE_THRESHOLD     = float(os.environ.get("WAKE_THRESHOLD", "0.75"))
 WAKE_CONSEC        = int(os.environ.get("WAKE_CONSEC", "1"))
 WAKE_COOLDOWN      = 3.0
@@ -76,7 +76,61 @@ def _ts():
 
 # ─── MIC ──────────────────────────────────────────────────────────────────────
 def find_best_mic():
-    return PYAUDIO_DEV  # CS202 mic (hw:1,0)
+    global PYAUDIO_DEV
+    if PYAUDIO_DEV is not None:
+        return PYAUDIO_DEV
+        
+    env_dev = os.environ.get("PYAUDIO_DEV")
+    if env_dev is not None:
+        try:
+            PYAUDIO_DEV = int(env_dev)
+            return PYAUDIO_DEV
+        except ValueError:
+            pass
+            
+    # Dynamic detection
+    try:
+        p = pyaudio.PyAudio()
+        device_count = p.get_device_count()
+        
+        # Priority 1: Check specifically for the CS202 microphone
+        for i in range(device_count):
+            info = p.get_device_info_by_index(i)
+            name = info.get('name', '')
+            if info.get('maxInputChannels', 0) > 0:
+                if "CS202" in name:
+                    PYAUDIO_DEV = i
+                    p.terminate()
+                    return PYAUDIO_DEV
+                    
+        # Priority 2: Check for any other active USB Audio Device or generic Device
+        for i in range(device_count):
+            info = p.get_device_info_by_index(i)
+            name = info.get('name', '')
+            if info.get('maxInputChannels', 0) > 0:
+                if "USB Audio Device" in name or "Device" in name:
+                    if "Imola" not in name and "loopback" not in name.lower():
+                        PYAUDIO_DEV = i
+                        p.terminate()
+                        return PYAUDIO_DEV
+                        
+        # Priority 2: Any device with input channels that is not a loopback or virtual
+        for i in range(device_count):
+            info = p.get_device_info_by_index(i)
+            name = info.get('name', '')
+            if info.get('maxInputChannels', 0) > 0:
+                if "Imola" not in name and "loopback" not in name.lower():
+                    PYAUDIO_DEV = i
+                    p.terminate()
+                    return PYAUDIO_DEV
+                    
+        p.terminate()
+    except Exception as e:
+        print(f"[error] [mic] Error dynamically finding best mic: {e}", flush=True)
+        
+    # Absolute fallback
+    PYAUDIO_DEV = 0
+    return PYAUDIO_DEV
 
 # ─── SPEAK ────────────────────────────────────────────────────────────────────
 def find_speaker_device():
@@ -457,11 +511,12 @@ def self_check():
     # 4. Validate Audio Input
     try:
         p = pyaudio.PyAudio()
-        info = p.get_device_info_by_index(PYAUDIO_DEV)
+        dev_idx = find_best_mic()
+        info = p.get_device_info_by_index(dev_idx)
         print(f"[info] [check] Audio input device verified: {info['name']}", flush=True)
         p.terminate()
     except Exception as e:
-        print(f"[error] [check] Audio input device verification failed (Index {PYAUDIO_DEV}): {e}", flush=True)
+        print(f"[error] [check] Audio input device verification failed: {e}", flush=True)
         sys.exit(1)
         
     # 5. Validate Audio Output
