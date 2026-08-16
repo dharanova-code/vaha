@@ -54,7 +54,7 @@ graph TD
         Mic[CS202 USB Microphone] -->|48 kHz Mono PCM| LinuxOS
     end
 
-    subgraph Linux OS Runtime (Python Backend)
+    subgraph "Linux OS Runtime (Python Backend)"
         LinuxOS -->|Edge Impulse Model| VAD[Marvin Wake Detect]
         VAD -->|Active Recording| AudioLoop[Audio Capture State Machine]
         AudioLoop -->|Stop Keyword / Silence| StopDetect[im_done detection]
@@ -65,7 +65,7 @@ graph TD
         AudioLoop -->|Piper TTS| Speaker[PAM8403 Audio Out]
     end
 
-    subgraph Mobile Companion (Expo / React Native)
+    subgraph "Mobile Companion (Expo / React Native)"
         Webserver -->|Wi-Fi HTTP Sync| SyncService[Sync Service]
         SyncService -->|Verify Checksum| SQLite[(Drizzle SQLite DB)]
         SQLite -->|Dynamic Card List| AppUI[React Native Viewports]
