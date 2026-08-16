@@ -1,17 +1,19 @@
-# Vaha Echosystem
+# VAHA — Offline-First Physical AI Voice Capture Device
 
 <div align="center">
 
-[![React Native](https://img.shields.io/badge/React_Native-Expo_SDK_54-61DAFB?logo=react&logoColor=black&style=for-the-badge)](https://reactnative.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white&style=for-the-badge)](https://www.typescriptlang.org)
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white&style=for-the-badge)](https://www.python.org)
-[![SQLite](https://img.shields.io/badge/SQLite-3.x-003B57?logo=sqlite&logoColor=white&style=for-the-badge)](https://www.sqlite.org)
-[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-Latest-C5F900?logo=drizzle&logoColor=black&style=for-the-badge)](https://orm.drizzle.team)
-[![Arduino](https://img.shields.io/badge/Arduino-Uno_Q-00979D?logo=arduino&logoColor=white&style=for-the-badge)](https://www.arduino.cc)
+**Arduino Physical AI Challenge India 2026 — Project Report & Repository**
 
-**Privacy-first, offline-first voice and ambient telemetry capture ecosystem.**
+*Organized by Robu.in × Arduino*
 
-[View Demo Video](#demo-showcase) • [Download Mobile App](#apk-installation) • [Hardware Setup](#hardware-integration) • [Developer Guide](#developer-setup)
+[![Arduino Uno Q](https://img.shields.io/badge/Microcontroller-Arduino_Uno_Q_--_ABX00087-00979D?logo=arduino&logoColor=white&style=flat-square)](https://www.arduino.cc)
+[![Expo React Native](https://img.shields.io/badge/Mobile-Expo_React_Native_SDK_54-61DAFB?logo=react&logoColor=black&style=flat-square)](https://reactnative.dev)
+[![Python Edge Runtime](https://img.shields.io/badge/Runtime-Python_3.12-3776AB?logo=python&logoColor=white&style=flat-square)](https://www.python.org)
+[![SQLite](https://img.shields.io/badge/Database-SQLite_--_Drizzle_ORM-003B57?logo=sqlite&logoColor=white&style=flat-square)](https://www.sqlite.org)
+
+**Team ID:** `APC-2026-AP-13507` | **Track:** `Smart Homes / Consumer AI` | **Institution:** `Dharanova, Visakhapatnam, India`
+
+[📺 View Demo Video](https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f) • [📱 Download APK](#-mobile-companion-apk) • [🔌 Circuit Pinout](#-hardware-bom--wiring) • [⚙️ Installation](#-setup--installation)
 
 </div>
 
@@ -19,156 +21,218 @@
 
 ## 📺 Demo Showcase
 
+Click the player card below to watch the physical device voice transcription and telemetry capture demo in action:
+
 <div align="center">
-  <p align="center">
-    <!-- Replace the URL below with your actual demo video link -->
-    <a href="https://www.youtube.com/watch?v=demo-placeholder">
-      <img src="https://img.youtube.com/vi/demo-placeholder/0.jpg" alt="Vaha Ecosystem Demo" width="70%"/>
-    </a>
-  </p>
-  <p><em>Click the image above to watch the Vaha physical device and mobile app synchronization demo.</em></p>
+  <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f">
+    <img src="docs/design/images/development_workspace.jpg" alt="VAHA Demo Video" width="70%" style="border-radius: 8px; border: 2px solid #ddd;"/>
+  </a>
+  <p><em>Demo video link: <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f">https://youtu.be/_Y_hMeHslhI</a></em></p>
 </div>
 
 ---
 
-## 🌌 The Vision
-Vaha is an ambient capture ecosystem designed to eliminate the friction between human thought and digital preservation. Using a dedicated, zero-friction physical device and a feature-rich companion mobile application, Vaha securely captures and enriches personal voice notes with physical environmental context—without relying on continuous network access or compromising user privacy.
+## 🌌 Project Overview & Problem Statement
+
+Good ideas don't always arrive when we are ready to write them down. In places like the bathroom or kitchen, we are physically away from our phones while our minds are still active. By the time we leave and try to write the idea down, part of it may already be forgotten. And even when we save it, we lose the physical context around that moment.
+
+**VAHA** solves both problems:
+1. **Hands-free capture**: Captures the thought on-the-spot using a physical, offline AI voice logger.
+2. **Context Enrichment**: Records the surrounding temperature, humidity, TVOC air quality, and water flow at the exact moment of capture, storing a complete physical snapshot of your environment alongside your thought.
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ System Workflow & Architecture
+
+The Arduino UNO Q serves as the central bridge, running an on-device Linux OS environment alongside an MCU microcontroller core to merge local voice AI processing with physical sensing.
 
 ```mermaid
 graph TD
-    subgraph Physical Device (Arduino Uno Q)
-        Sensors[DHT22 / AGS02MA / Flow] -->|Raw Readings| UnoMCU[Arduino Uno Q MCU]
-        UnoMCU -->|Serial Bridge API| RouterBridge[Arduino Router Bridge]
+    subgraph Arduino UNO Q Board
+        Sensors[DHT22 / AGS02MA / Flow] -->|Raw Readings| MCU[microcontroller Core]
+        MCU -->|sensors_get Bridge API| LinuxOS[Linux OS Runtime]
+        Mic[CS202 USB Microphone] -->|48 kHz Mono PCM| LinuxOS
     end
 
-    subgraph Companion Server (Python Service)
-        RouterBridge -->|sensors_get / WebSocket| AudioLoop[Audio & Telemetry Loop]
-        Mic[Physical Microphone] -->|Audio Input| AudioLoop
-        AudioLoop -->|VAD / Edge Impulse| WakeDetect[Marvin Wake Keyword Detect]
-        AudioLoop -->|faster-whisper| STT[Whisper Offline STT]
-        STT -->|Transcripts| SyncService[Sync Engine]
-        SyncService -->|Local SQLite| DB[(Telemetry DB)]
-        SyncService -->|Sync API| Notion[(Notion Cloud Sync)]
-        AudioLoop -->|Piper TTS| Speak[Audio Feedback]
+    subgraph Linux OS Runtime (Python Backend)
+        LinuxOS -->|Edge Impulse Model| VAD[Marvin Wake Detect]
+        VAD -->|Active Recording| AudioLoop[Audio Capture State Machine]
+        AudioLoop -->|Stop Keyword / Silence| StopDetect[im_done detection]
+        StopDetect -->|faster-whisper base.en int8| STT[On-Device Transcription]
+        STT -->|Assemble Capture| Storage[Local storage: audio + JSON + checksum]
+        Storage -->|FastAPI Edge Server| Webserver[FastAPI endpoint: 8080]
+        Storage -->|Optional Sync| Notion[Notion Client API]
+        AudioLoop -->|Piper TTS| Speaker[PAM8403 Audio Out]
     end
 
     subgraph Mobile Companion (Expo / React Native)
-        SyncService -->|WebSocket Telemetry| MobileUI[React Native App]
-        DB -->|Drizzle SQLite| MobileUI
-        MobileUI -->|UI Panels| InsightsChart[Interactive SVG Charts]
-        MobileUI -->|Speech-to-Text Fallback| GroqTranscribe[Groq Fallback STT]
+        Webserver -->|Wi-Fi HTTP Sync| SyncService[Sync Service]
+        SyncService -->|Verify Checksum| SQLite[(Drizzle SQLite DB)]
+        SQLite -->|Dynamic Card List| AppUI[React Native Viewports]
+        AppUI -->|Interactive SVG charts| GraphPanel[Telemetry Panel]
     end
 ```
 
----
-
-## 🚀 Key Features
-
-*   🔊 **Zero-Friction Voice Logging**: Offline voice-activity detection (VAD) using Edge Impulse models. Instantly records voice memos when keyword "Marvin" is detected.
-*   💾 **Local-First Core**: All audio transcriptions (Whisper) and telemetry databases (SQLite) run locally on the host companion server.
-*   📊 **Ambient Telemetry Graphs**: Gathers real-time environmental context (Temperature, Humidity, Water Flow, TVOC Air Quality) and displays them on premium interactive SVG line charts.
-*   🧠 **AI Title Suggestions**: Intelligently summarizes note logs to suggest creative, relevant headers using Llama 3.1 8B via Groq.
-*   🤖 **Kids Sustainability Mode**: Incorporates a kid-friendly narrative engine that turns telemetry data (like water volume usage) into engaging sustainability stories.
-*   📲 **Batch Management**: Supports batch selection, tagging, database merging, and bulk deletion of recorded notes.
+### Step-by-Step Data Flow:
+1. **Wake Word Detection**: The user says *"Marvin"*. The on-device Edge Impulse model (`new-marvin.eim`) detects it and triggers a `capture_started` event over WebSockets.
+2. **Audio Capture**: Raw audio is recorded at **48 kHz (16-bit PCM)** with noise reduction.
+3. **Stop Trigger**: Recording ends when the stop phrase *"im_done"* is detected (threshold 0.80) or after 10 seconds of silence.
+4. **On-Device STT**: Audio is downsampled to 16 kHz and transcribed locally using `faster-whisper` (`base.en`, int8 quantized, running on CPU).
+5. **Sensor Sync**: Environmental readings are pulled via the sketch's `sensors_get()` bridge call and packaged into a JSON metadata payload.
+6. **Local Storage**: The capture package (`audio.wav`, `transcript.json`, `metadata.json`, `checksum.md5`) is written locally to `captures/YYYY/MM/DD/uuid/` and optionally synced to Notion.
+7. **Mobile Sync**: The companion React Native app pulls the captures over local Wi-Fi, verifies the MD5 checksums, inserts records into Drizzle SQLite, and issues a purge command to clear the physical device storage.
 
 ---
 
-## 📱 Mobile App (APK Installation)
+## 📷 Physical Workspace & Assembly
 
-The mobile companion application is compiled for Android viewports and is available for instant download.
-
-| Platform | Build Type | Download Link |
-|:---|:---|:---|
-| **Android (arm64-v8a)** | Release (v1.1.0) | [📥 Download arm64-v8a APK](release/vaha-companion-v1.1.0-arm64-v8a.apk) |
-| **Android (armeabi-v7a)** | Release (v1.1.0) | [📥 Download armeabi-v7a APK](release/vaha-companion-v1.1.0-armeabi-v7a.apk) |
-
-*The APKs have been optimized using R8 minification to reduce download size and memory overhead.*
-
----
-
-## 🔌 Hardware Integration
-
-The Vaha physical node runs on an **Arduino Uno Q** microcontroller connected to temperature, air quality, and water flow sensors.
-
-### 📐 Circuit Diagram & Pinout
+Here is the physical layout of the VAHA ecosystem during assembly and active testing:
 
 <div align="center">
-  <!-- Place your circuit diagram image here -->
-  <img src="design/wireframes/circuit_layout_placeholder.png" alt="Vaha Circuit Schema" width="80%"/>
-  <p><em>Vaha Physical Node Schematic (DHT22, AGS02MA TVOC, and Flow sensor integration)</em></p>
+  <table border="0">
+    <tr>
+      <td width="50%" align="center">
+        <img src="docs/design/images/development_workspace.jpg" width="95%" style="border-radius: 8px;"/><br/>
+        <b>Development Workspace Layout</b>
+      </td>
+      <td width="50%" align="center">
+        <img src="docs/design/images/assembled_device_enclosure.jpg" width="95%" style="border-radius: 8px;"/><br/>
+        <b>Assembled Enclosure Interior</b>
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" align="center">
+        <img src="docs/design/images/arduino_uno_q_lavalier_mic.jpg" width="95%" style="border-radius: 8px;"/><br/>
+        <b>UNO Q, USB Hub & Lavalier Mic Setup</b>
+      </td>
+      <td width="50%" align="center">
+        <img src="docs/design/images/sensor_wiring_breadboard.jpg" width="95%" style="border-radius: 8px;"/><br/>
+        <b>DHT22 & AGS02MA TVOC Sensor Wiring</b>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center">
+        <img src="docs/design/images/water_flow_sensor_test_rig.jpg" width="48%" style="border-radius: 8px;"/><br/>
+        <b>Water Flow Sensor Test Rig Setup</b>
+      </td>
+    </tr>
+  </table>
 </div>
-
-| Sensor | Sensor Pin | Arduino Uno Q Pin | Connection Type | Description |
-|:---|:---|:---|:---|:---|
-| **DHT22** | VCC | 5V | Power | - |
-| **DHT22** | Data | Pin 2 | Digital Input | Temperature & Humidity |
-| **DHT22** | GND | GND | Ground | - |
-| **AGS02MA** | VCC | 3.3V | Power | TVOC Air Quality Sensor |
-| **AGS02MA** | SDA | SDA (A4) | I2C Data | Communicating at 20kHz |
-| **AGS02MA** | SCL | SCL (A5) | I2C Clock | - |
-| **AGS02MA** | GND | GND | Ground | - |
-| **Flow Meter**| VCC | 5V | Power | Water Pulse Flow Sensor |
-| **Flow Meter**| Output | Pin 3 | Digital Interrupt | RISING pulse interrupt count |
-| **Flow Meter**| GND | GND | Ground | - |
 
 ---
 
-## ⚙️ Developer Setup
+## 🔌 Hardware BOM & Wiring
 
-### 1. Arduino Firmware Flash
-Ensure you have the Arduino IDE or CLI installed:
-1. Open the sketch file in [`sketch/sketch.ino`](file:///c:/Projects/vaha/sketch/sketch.ino).
-2. Install the `DHT` sensor library and `Arduino_RouterBridge` library.
-3. Flash the code to the **Arduino Uno Q**.
+### Bill of Materials (BOM)
+*   **Microcontroller**: Arduino UNO Q (ABX00087)
+*   **Climate Sensor**: DHT22 Temperature & Humidity Sensor
+*   **Air Quality Sensor**: AGS02MA TVOC Air Quality Sensor (I2C)
+*   **Water Sensor**: Hall-effect Pulse Water Flow Sensor (7.5 pulses/L/min)
+*   **Audio Input**: USB Lavalier Microphone (auto-detected as CS202)
+*   **Audio Output**: PAM8403 Audio Amplifier + 4Ω 3W Speaker
+*   **Peripherals**: Portronics USB-C multiport hub, 2x Mini Breadboards, Mi-branded Power Bank
 
-### 2. Backend Companion Server Setup (Python)
-The backend requires **Python 3.12** and virtual environment setups.
+### Schematic Diagram
+<div align="center">
+  <img src="docs/design/images/circuit_diagram.png" alt="VAHA Circuit Diagram" width="85%" style="border-radius: 8px; border: 1px solid #ddd;"/>
+</div>
 
-1. Navigate to the python directory:
+### Pin Connection Map
+| Sensor/Module | Module Pin | Arduino UNO Q Pin | Connection Type | Description |
+|:---|:---|:---|:---|:---|
+| **DHT22** | VCC | 5V | Power | Temperature & Humidity Sensor |
+| **DHT22** | DATA | Pin D2 | Digital Input | Climate telemetry signal line |
+| **DHT22** | GND | GND | Ground | Common ground |
+| **Water Flow** | VCC | 5V | Power | Hall-effect pulse sensor |
+| **Water Flow** | SIG | Pin D3 | Digital Interrupt | RISING edge interrupt pulse counter |
+| **Water Flow** | GND | GND | Ground | Common ground |
+| **AGS02MA** | VCC | 3.3V | Power | TVOC air quality sensor |
+| **AGS02MA** | SDA | Pin A4 (SDA) | I2C Data | Communicates at 20kHz clock |
+| **AGS02MA** | SCL | Pin A5 (SCL) | I2C Clock | - |
+| **AGS02MA** | GND | GND | Ground | Common ground |
+| **PAM8403** | 5V / GND | 5V / GND | Power | Speaker amplifier module |
+| **PAM8403** | Audio In | Audio Out (Analog)| Analog Input | Voice prompt TTS output from Uno Q |
+| **Speaker** | L+ / L- | Speaker Outputs | Analog Output | 4Ω 3W audio transducer output |
+
+---
+
+## 🤖 AI / ML Model Specifications
+
+| Layer / Task | Model Used | Platform / Runtime | Training & Dataset |
+|:---|:---|:---|:---|
+| **A: Wake-word Spotting** | `"Marvin"` (`new-marvin.eim`) | Edge Impulse Runner | Trained on 48 custom voice logs augmented into 1,800 sample iterations. |
+| **B: Stop-phrase Spotting** | `"im_done"` (`new-marvin.eim`) | Edge Impulse Runner | Trained on custom-recorded voice command datasets. |
+| **C: Speech-to-Text (STT)** | `faster-whisper base.en` | CTranslate2 (int8, CPU) | Pretrained English speech model. Unmodified, fully offline on-device. |
+
+---
+
+## 📊 Verification & Performance Results
+
+### Scripted Verification Scenarios:
+1. **Normal Offline Capture** (Wake word ➔ Record ➔ Transcribe ➔ Store ➔ Sync ➔ Purge): **SUCCESS**
+2. **Transfer Interruption**: Checksum mismatch correctly triggers retries with exponential backoffs: **SUCCESS**
+3. **Recovery on Reconnect**: Background sync engine resumes automatically when network goes online: **SUCCESS**
+4. **Duplicate-Capture Prevention**: Implemented UUID folder structures and SQLite primary key index constraints: **SUCCESS**
+
+### Performance Metrics:
+*   **Sync-Initiation Latency**: ~250 ms average per capture package.
+*   **Transfer Throughput**: ~1.5 MB/s over local Wi-Fi (~1 second per MB of audio).
+*   **CPU Utilization**: ~30% peak CPU usage on the Arduino UNO Q during local Whisper inference.
+*   **WebSocket Telemetry Latency**: <10 ms latency for real-time sensor updates.
+*   **Database Write Latency**: ~5 ms per SQLite transaction in the mobile app.
+
+---
+
+## 📱 Mobile Companion APK
+
+The compiled Android companion application is available in the repository:
+
+*   **[📥 Download ARM64 App Build (v1.1.0)](release/vaha-companion-v1.1.0-arm64-v8a.apk)** (Optimized for arm64-v8a)
+*   **[📥 Download ARMv7 App Build (v1.1.0)](release/vaha-companion-v1.1.0-armeabi-v7a.apk)** (Optimized for armeabi-v7a)
+
+---
+
+## ⚙️ Setup & Installation
+
+### 1. Microcontroller Firmware Flash
+1. Install Arduino CLI or Arduino IDE.
+2. Open [`sketch/sketch.ino`](file:///c:/Projects/vaha/sketch/sketch.ino).
+3. Install dependencies: `DHT` library and `Arduino_RouterBridge` library.
+4. Upload the sketch to the **Arduino UNO Q** board.
+
+### 2. Python Backend Edge Runtime
+1. Install **Python 3.12** on the Uno Q Linux workspace.
+2. Navigate to [`python/`](file:///c:/Projects/vaha/python):
    ```bash
    cd python
-   ```
-2. Create and activate a virtual environment:
-   ```bash
    python -m venv venv
-   # On Windows:
-   .\venv\Scripts\activate
-   # On Linux/macOS:
-   source venv/bin/activate
+   # Activate:
+   .\venv\Scripts\activate  # Windows
+   source venv/bin/activate # Linux/macOS
    ```
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-4. Copy and populate the local configuration variables:
-   ```bash
-   cp .env.example .env
-   # Set your Groq API keys, Notion database credentials, and port choices
-   ```
-5. Run the server:
+4. Copy `.env.example` to `.env` and fill in API keys (Notion database IDs, Groq token for fallback).
+5. Start the edge server:
    ```bash
    python main.py
    ```
 
-### 3. Mobile App Development Setup (Expo)
-1. Navigate to the mobile directory:
+### 3. Mobile Companion Application (React Native)
+1. Install Node.js (LTS version).
+2. Navigate to [`mobile/`](file:///c:/Projects/vaha/mobile):
    ```bash
    cd mobile
-   ```
-2. Install Node packages:
-   ```bash
    npm install
    ```
-3. Start the Expo development server:
+3. Run the development server:
    ```bash
    npx expo start
    ```
 
 ---
 
-## 📄 License & Terms
-Proprietary. All rights reserved. Code licensed under custom terms for Gratian Technologies.
+## 📄 License & Intellectual Property
+Proprietary. All rights reserved. Code licensed under custom terms for **Gratian Technologies**.
