@@ -12,10 +12,10 @@
 [![SQLite](https://img.shields.io/badge/Database-SQLite_--_Drizzle_ORM-003B57?logo=sqlite&logoColor=white&style=flat-square)](https://www.sqlite.org)
 
 **Team Name:** `VAHA` | **Team ID:** `APC-2026-AP-13507` | **Track:** `Smart Homes / Consumer AI`  
-**Institution:** `Dharanova Private Limited, Visakhapatnam, Andhra Pradesh, India`  
+**Institution:** `Dharanova Pvt Ltd, Visakhapatnam, Andhra Pradesh, India`  
 **Developer:** `Ritesh Bonthalakoti (ritesh@dharanova.com)` — Solo Developer
 
-[📺 View Demo Video](https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f) • [📱 Download APK](#-mobile-companion-apk) • [🔌 Circuit Pinout](#-hardware-bom--wiring) • [⚙️ Installation](#-setup--installation)
+[📄 View Final Project Report PDF](docs/VAHA%20Report.pdf) • [📺 View Demo Video](https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f) • [📱 Download APK](#-mobile-companion-apk)
 
 </div>
 
@@ -27,20 +27,60 @@
   <table border="0">
     <tr>
       <td width="50%" align="center">
-        <img src="docs/design/images/assembled_device_enclosure.jpg" width="95%" style="border-radius: 8px; border: 2px solid #ddd;"/><br/>
-        <b>Hardware Product: VAHA Enclosure by Dharanova Private Limited</b>
+        <img src="docs/vahabydharanova.png" width="95%" style="border-radius: 8px; border: 2px solid #ddd;"/><br/>
+        <b>1. VAHA Hardware Product — by Dharanova Pvt Ltd</b>
       </td>
       <td width="50%" align="center">
-        <img src="docs/design/images/development_workspace.jpg" width="95%" style="border-radius: 8px; border: 2px solid #ddd;"/><br/>
-        <b>VAHA Ecosystem & Companion App Integration</b>
+        <img src="docs/home%20page.png" width="95%" style="border-radius: 8px; border: 2px solid #ddd;"/><br/>
+        <b>2. Companion App — Home Dashboard</b>
       </td>
     </tr>
   </table>
   <br/>
+  
   <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f">
-    <img src="docs/design/images/development_workspace.jpg" alt="VAHA Demo Video" width="75%" style="border-radius: 8px; border: 2px solid #ddd;"/>
+    <img src="https://img.youtube.com/vi/_Y_hMeHslhI/maxresdefault.jpg" alt="VAHA Demo Video Thumbnail" width="75%" style="border-radius: 8px; border: 2px solid #ddd;"/>
   </a>
   <p><em>📺 Click above or visit <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f">https://youtu.be/_Y_hMeHslhI</a> to watch the full physical demonstration.</em></p>
+</div>
+
+---
+
+## ⏳ Project Development Timeline
+
+<div align="center">
+  <svg width="100%" height="90" viewBox="0 0 600 90" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background Track Line -->
+    <line x1="60" y1="35" x2="540" y2="35" stroke="#E2E8F0" stroke-width="6" stroke-linecap="round"/>
+    
+    <!-- Animated Progress Line -->
+    <line x1="60" y1="35" x2="540" y2="35" stroke="url(#timelineGrad)" stroke-width="6" stroke-linecap="round">
+      <animate attributeName="x2" from="60" to="540" dur="2.2s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1"/>
+    </line>
+    
+    <defs>
+      <linearGradient id="timelineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#00979D" />
+        <stop offset="50%" stop-color="#3B82F6" />
+        <stop offset="100%" stop-color="#10B981" />
+      </linearGradient>
+    </defs>
+    
+    <!-- June Node -->
+    <circle cx="60" cy="35" r="10" fill="#00979D" stroke="#FFFFFF" stroke-width="3"/>
+    <text x="60" y="63" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#00979D">June 2026</text>
+    <text x="60" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#64748B">Ideation & Architecture</text>
+    
+    <!-- July Node -->
+    <circle cx="300" cy="35" r="10" fill="#3B82F6" stroke="#FFFFFF" stroke-width="3"/>
+    <text x="300" y="63" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#3B82F6">July 2026</text>
+    <text x="300" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#64748B">Hardware & On-Device AI</text>
+    
+    <!-- August Node -->
+    <circle cx="540" cy="35" r="10" fill="#10B981" stroke="#FFFFFF" stroke-width="3"/>
+    <text x="540" y="63" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#10B981">August 2026</text>
+    <text x="540" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#64748B">Mobile App & Deployment</text>
+  </svg>
 </div>
 
 ---
@@ -56,63 +96,34 @@ Creative minds don't switch off. Ideas show up at the office, school, the park, 
 
 ---
 
-## ⏳ Project Development Timeline (June 2026 – August 2026)
-
-```
-June 2026                    July 2026                     August 2026 (Till Now)
-  ├─ Ideation & Need        ├─ Breadboard Assembly       ├─ Expo Companion App
-  ├─ Problem Analysis       ├─ Edge Impulse "Marvin"     ├─ Drizzle SQLite Database
-  ├─ Sensor Selection       ├─ faster-whisper STT        ├─ FastAPI / WebSocket Sync
-  └─ Board Architecture     └─ Enclosure Fabrication     └─ 34 Real-Noise Trials
-```
-
-### 🗓️ Phase 1: Ideation & Architectural Planning (June 2026)
-- **Problem Discovery**: Identified the bathroom as the primary home "blind spot" where spontaneous creative thoughts occur but go unrecorded due to water and privacy constraints.
-- **Hardware Architecture**: Selected the **Arduino UNO Q (ABX00087)** for its dual Linux OS + MCU bridge architecture.
-- **Sensor Specification**: Designed the environmental sensing suite combining **DHT22** (climate), **AGS02MA** (air quality TVOC), and a **Hall-effect pulse water flow sensor**.
-
-### 🗓️ Phase 2: MVP Hardware & On-Device AI Pipeline (July 2026)
-- **Sensor Circuit Rig**: Assembled initial breadboard prototypes with custom I2C and digital pulse interrupt handlers.
-- **On-Device Wake-Word Model**: Collected 48 custom voice logs and augmented them into 1,800+ samples to train an Edge Impulse keyword model (`Marvin` wake-word & `im_done` stop-phrase) achieving **98.7% validation accuracy**.
-- **Speech-to-Text Integration**: Fine-tuned `faster-whisper` (`base.en`, int8 quantized) to execute offline on the Uno Q CPU.
-- **Enclosure Design**: Fabricated the physical wall-mountable enclosure featuring Dharanova Private Limited branding and physical sensor vents.
-
-### 🗓️ Phase 3: Mobile Companion, Sync Engine & Verification (August 2026 – Till Now)
-- **Mobile Companion Development**: Built the mobile app using **Expo / React Native SDK 54** with **Drizzle SQLite** for local persistence.
-- **Local Edge Server**: Implemented FastAPI backend (Port 8080) and WebSocket (`/ws`) real-time sensor broadcast.
-- **MD5 Checksum Sync Engine**: Designed the Wi-Fi sync loop with checksum validation and automatic device storage purging.
-- **Acoustic Stress Testing**: Successfully verified the system across **34 capture trials** in real bathroom acoustic conditions with running taps and exhaust fans running.
-
----
-
 ## 🏗️ System Workflow & Architecture
 
 The Arduino UNO Q serves as the central bridge, running an on-device Linux OS environment alongside an MCU microcontroller core to merge local voice AI processing with physical sensing.
 
 ```mermaid
 graph TD
-    subgraph Arduino UNO Q Board
-        Sensors[DHT22 / AGS02MA / Flow] -->|Raw Readings| MCU[microcontroller Core]
-        MCU -->|sensors_get Bridge API| LinuxOS[Linux OS Runtime]
-        Mic[CS202 USB Microphone] -->|48 kHz Mono PCM| LinuxOS
+    subgraph UNO_Q ["Arduino UNO Q Board"]
+        Sensors["DHT22 / AGS02MA / Flow"] -->|Raw Readings| MCU["microcontroller Core"]
+        MCU -->|sensors_get Bridge API| LinuxOS["Linux OS Runtime"]
+        Mic["CS202 USB Microphone"] -->|48 kHz Mono PCM| LinuxOS
     end
 
-    subgraph "Linux OS Runtime (Python Backend)"
-        LinuxOS -->|Edge Impulse Model| VAD[Marvin Wake Detect]
-        VAD -->|Active Recording| AudioLoop[Audio Capture State Machine]
-        AudioLoop -->|Stop Keyword / Silence| StopDetect[im_done detection]
-        StopDetect -->|faster-whisper base.en int8| STT[On-Device Transcription]
-        STT -->|Assemble Capture| Storage[Local storage: audio + JSON + checksum]
-        Storage -->|FastAPI Edge Server| Webserver[FastAPI endpoint: 8080]
-        Storage -->|Optional Sync| Notion[Notion Client API]
-        AudioLoop -->|Piper TTS| Speaker[PAM8403 Audio Out]
+    subgraph Linux_Backend ["Linux OS Runtime (Python Backend)"]
+        LinuxOS -->|Edge Impulse Model| VAD["Marvin Wake Detect"]
+        VAD -->|Active Recording| AudioLoop["Audio Capture State Machine"]
+        AudioLoop -->|Stop Keyword / Silence| StopDetect["im_done detection"]
+        StopDetect -->|faster-whisper base.en int8| STT["On-Device Transcription"]
+        STT -->|Assemble Capture| Storage["Local storage: audio + JSON + checksum"]
+        Storage -->|FastAPI Edge Server| Webserver["FastAPI endpoint: 8080"]
+        Storage -->|Optional Sync| Notion["Notion Client API"]
+        AudioLoop -->|Piper TTS| Speaker["PAM8403 Audio Out"]
     end
 
-    subgraph "Mobile Companion (Expo / React Native)"
-        Webserver -->|Wi-Fi HTTP Sync| SyncService[Sync Service]
-        SyncService -->|Verify Checksum| SQLite[(Drizzle SQLite DB)]
-        SQLite -->|Dynamic Card List| AppUI[React Native Viewports]
-        AppUI -->|Interactive SVG charts| GraphPanel[Telemetry Panel]
+    subgraph Mobile_App ["Mobile Companion (Expo / React Native)"]
+        Webserver -->|Wi-Fi HTTP Sync| SyncService["Sync Service"]
+        SyncService -->|Verify Checksum| SQLite[("Drizzle SQLite DB")]
+        SQLite -->|Dynamic Card List| AppUI["React Native Viewports"]
+        AppUI -->|Interactive SVG charts| GraphPanel["Telemetry Panel"]
     end
 ```
 
@@ -127,46 +138,81 @@ graph TD
 
 ---
 
+## 📐 System Block & Circuit Diagrams
+
+### Figure 1. VAHA System Block Diagram
+<div align="center">
+  <img src="docs/design/images/block_diagram.png" alt="VAHA System Block Diagram" width="85%" style="border-radius: 8px; border: 1px solid #ddd;"/>
+</div>
+
+<br/>
+
+### Figure 2. VAHA Main Circuit Schematic
+<div align="center">
+  <img src="docs/design/images/circuit_diagram.png" alt="VAHA Circuit Diagram" width="85%" style="border-radius: 8px; border: 1px solid #ddd;"/>
+</div>
+
+---
+
 ## 📷 Complete Project Image Gallery
 
-Here is the complete visual documentation of the VAHA hardware, schematics, and enclosure assembly:
+### 📱 Mobile Companion Application Views
+<div align="center">
+  <table border="0">
+    <tr>
+      <td width="25%" align="center">
+        <img src="docs/home%20page.png" width="95%" style="border-radius: 8px; border: 1px solid #ddd;"/><br/>
+        <b>Home View — Synced Notes</b>
+      </td>
+      <td width="25%" align="center">
+        <img src="docs/sensorlogs.png" width="95%" style="border-radius: 8px; border: 1px solid #ddd;"/><br/>
+        <b>Device View — Live Telemetry</b>
+      </td>
+      <td width="25%" align="center">
+        <img src="docs/Insights.png" width="95%" style="border-radius: 8px; border: 1px solid #ddd;"/><br/>
+        <b>Insights View — Trends</b>
+      </td>
+      <td width="25%" align="center">
+        <img src="docs/notes.png" width="95%" style="border-radius: 8px; border: 1px solid #ddd;"/><br/>
+        <b>Notes View — Searchable Logs</b>
+      </td>
+    </tr>
+  </table>
+</div>
 
+<br/>
+
+### 🛠️ Hardware Build & Sensor Test Rigs
 <div align="center">
   <table border="0">
     <tr>
       <td width="50%" align="center">
-        <img src="docs/design/images/block_diagram.png" width="95%" style="border-radius: 8px; border: 1px solid #ddd;"/><br/>
-        <b>Figure 1. VAHA System Block Diagram</b>
+        <img src="docs/desktop%20view.png" width="95%" style="border-radius: 8px;"/><br/>
+        <b>Development Workspace & Assembly Layout</b>
       </td>
       <td width="50%" align="center">
-        <img src="docs/design/images/circuit_diagram.png" width="95%" style="border-radius: 8px; border: 1px solid #ddd;"/><br/>
-        <b>Figure 2. VAHA Main Circuit Schematic</b>
-      </td>
-    </tr>
-    <tr>
-      <td width="50%" align="center">
-        <img src="docs/design/images/development_workspace.jpg" width="95%" style="border-radius: 8px;"/><br/>
-        <b>Development Workspace Layout</b>
-      </td>
-      <td width="50%" align="center">
-        <img src="docs/design/images/arduino_uno_q_lavalier_mic.jpg" width="95%" style="border-radius: 8px;"/><br/>
-        <b>UNO Q, USB Hub & Lavalier Mic Setup</b>
+        <img src="docs/UNOQconnecting.png" width="95%" style="border-radius: 8px;"/><br/>
+        <b>Arduino UNO Q & Microphone Setup</b>
       </td>
     </tr>
     <tr>
       <td width="50%" align="center">
-        <img src="docs/design/images/sensor_wiring_breadboard.jpg" width="95%" style="border-radius: 8px;"/><br/>
+        <img src="docs/sensorsconnecting.png" width="95%" style="border-radius: 8px;"/><br/>
         <b>DHT22 & AGS02MA TVOC Sensor Wiring</b>
       </td>
       <td width="50%" align="center">
-        <img src="docs/design/images/water_flow_sensor_test_rig.jpg" width="95%" style="border-radius: 8px;"/><br/>
-        <b>Water Flow Sensor Test Rig Setup</b>
+        <img src="docs/waterflowtesting.png" width="95%" style="border-radius: 8px;"/><br/>
+        <b>Water Flow Sensor In-Line Testing</b>
       </td>
     </tr>
     <tr>
-      <td colspan="2" align="center">
-        <img src="docs/design/images/assembled_device_enclosure.jpg" width="60%" style="border-radius: 8px; border: 1px solid #ddd;"/><br/>
-        <b>Assembled VAHA Unit with Dharanova Private Limited Branding</b>
+      <td width="50%" align="center">
+        <img src="docs/hardware%20components%20.png" width="95%" style="border-radius: 8px;"/><br/>
+        <b>Hardware Components Suite</b>
+      </td>
+      <td width="50%" align="center">
+        <img src="docs/sensorviewofvaha.png" width="95%" style="border-radius: 8px;"/><br/>
+        <b>Enclosed VAHA Device Sensor Port</b>
       </td>
     </tr>
   </table>

@@ -10,3 +10,6 @@ wheels/
 core.*
 captures/
 python/.env
+python/venv/
+mobile/android/
+mobile/.claude/
