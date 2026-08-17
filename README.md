@@ -49,17 +49,7 @@
 ## ⏳ Project Development Timeline
 
 <div align="center">
-
-[![June 2026](https://img.shields.io/badge/June_2026-Ideation_%26_Architecture-00979D?style=for-the-badge)](#) ➔ [![July 2026](https://img.shields.io/badge/July_2026-Hardware_%26_On--Device_AI-3B82F6?style=for-the-badge)](#) ➔ [![August 2026](https://img.shields.io/badge/August_2026-Mobile_App_%26_Deployment-10B981?style=for-the-badge)](#)
-
-<table border="0">
-  <tr>
-    <td align="center" width="33%"><b>June 2026</b><br/><sub>Bathroom Blind-spot Problem • Board Selection</sub></td>
-    <td align="center" width="33%"><b>July 2026</b><br/><sub>Sensor Rig Wiring • Edge Impulse "Marvin" Model</sub></td>
-    <td align="center" width="33%"><b>August 2026</b><br/><sub>Expo App • Drizzle SQLite • 34 Real-Noise Trials</sub></td>
-  </tr>
-</table>
-
+  <img src="docs/design/images/timeline_water_flow.gif" alt="VAHA Fluid Water Flow Project Development Timeline (May 2026 - August 2026)" width="100%" style="border-radius: 8px; border: 1px solid #1E293B;"/>
 </div>
 
 ---
