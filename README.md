@@ -49,38 +49,17 @@
 ## ⏳ Project Development Timeline
 
 <div align="center">
-  <svg width="100%" height="90" viewBox="0 0 600 90" xmlns="http://www.w3.org/2000/svg">
-    <!-- Background Track Line -->
-    <line x1="60" y1="35" x2="540" y2="35" stroke="#E2E8F0" stroke-width="6" stroke-linecap="round"/>
-    
-    <!-- Animated Progress Line -->
-    <line x1="60" y1="35" x2="540" y2="35" stroke="url(#timelineGrad)" stroke-width="6" stroke-linecap="round">
-      <animate attributeName="x2" from="60" to="540" dur="2.2s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1"/>
-    </line>
-    
-    <defs>
-      <linearGradient id="timelineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#00979D" />
-        <stop offset="50%" stop-color="#3B82F6" />
-        <stop offset="100%" stop-color="#10B981" />
-      </linearGradient>
-    </defs>
-    
-    <!-- June Node -->
-    <circle cx="60" cy="35" r="10" fill="#00979D" stroke="#FFFFFF" stroke-width="3"/>
-    <text x="60" y="63" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#00979D">June 2026</text>
-    <text x="60" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#64748B">Ideation & Architecture</text>
-    
-    <!-- July Node -->
-    <circle cx="300" cy="35" r="10" fill="#3B82F6" stroke="#FFFFFF" stroke-width="3"/>
-    <text x="300" y="63" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#3B82F6">July 2026</text>
-    <text x="300" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#64748B">Hardware & On-Device AI</text>
-    
-    <!-- August Node -->
-    <circle cx="540" cy="35" r="10" fill="#10B981" stroke="#FFFFFF" stroke-width="3"/>
-    <text x="540" y="63" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#10B981">August 2026</text>
-    <text x="540" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#64748B">Mobile App & Deployment</text>
-  </svg>
+
+[![June 2026](https://img.shields.io/badge/June_2026-Ideation_%26_Architecture-00979D?style=for-the-badge)](#) ➔ [![July 2026](https://img.shields.io/badge/July_2026-Hardware_%26_On--Device_AI-3B82F6?style=for-the-badge)](#) ➔ [![August 2026](https://img.shields.io/badge/August_2026-Mobile_App_%26_Deployment-10B981?style=for-the-badge)](#)
+
+<table border="0">
+  <tr>
+    <td align="center" width="33%"><b>June 2026</b><br/><sub>Bathroom Blind-spot Problem • Board Selection</sub></td>
+    <td align="center" width="33%"><b>July 2026</b><br/><sub>Sensor Rig Wiring • Edge Impulse "Marvin" Model</sub></td>
+    <td align="center" width="33%"><b>August 2026</b><br/><sub>Expo App • Drizzle SQLite • 34 Real-Noise Trials</sub></td>
+  </tr>
+</table>
+
 </div>
 
 ---
