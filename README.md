@@ -30,6 +30,12 @@
 ## 📺 Demo & Product Showcase
 
 <div align="center">
+  <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f">
+    <img src="https://img.youtube.com/vi/_Y_hMeHslhI/maxresdefault.jpg" alt="VAHA Demo Video Thumbnail" width="85%" style="border-radius: 8px; border: 2px solid #ddd;"/>
+  </a>
+  <p><em>📺 Click above or visit <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f">https://youtu.be/_Y_hMeHslhI</a> to watch the full physical demonstration.</em></p>
+  <br/>
+
   <table border="0">
     <tr>
       <td width="50%" align="center">
@@ -42,12 +48,6 @@
       </td>
     </tr>
   </table>
-  <br/>
-  
-  <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f">
-    <img src="https://img.youtube.com/vi/_Y_hMeHslhI/maxresdefault.jpg" alt="VAHA Demo Video Thumbnail" width="75%" style="border-radius: 8px; border: 2px solid #ddd;"/>
-  </a>
-  <p><em>📺 Click above or visit <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f">https://youtu.be/_Y_hMeHslhI</a> to watch the full physical demonstration.</em></p>
 </div>
 
 ---

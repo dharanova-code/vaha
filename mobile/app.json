@@ -34,10 +34,9 @@
       "icon": "./assets/notification-icon.png",
       "color": "#1B3629"
     },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "backgroundColor": "#FAF8F5"
-    },
+    "platforms": [
+      "android"
+    ],
     "scheme": "vaha",
     "plugins": [
       "expo-router",
