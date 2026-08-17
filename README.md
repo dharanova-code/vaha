@@ -20,7 +20,7 @@
   &nbsp;
   <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f"><img src="https://img.shields.io/badge/📺_Watch_Demo_Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Demo Video"/></a>
   &nbsp;
-  <a href="https://expo.dev/accounts/ritesh1918/projects/vaha/builds/b5f24e6f-b06e-45cc-9407-3cbf0b295a4c"><img src="https://img.shields.io/badge/📱_Download_App_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Mobile APK"/></a>
+  <a href="https://github.com/dharanova-code/vaha/releases/tag/v1.1.0"><img src="https://img.shields.io/badge/📱_Download_App_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Mobile APK"/></a>
 </p>
 
 </div>
@@ -291,9 +291,9 @@ The compiled Android companion application is available in the repository:
 ### 3. Mobile Companion Application (React Native)
 
 #### 📥 Download Compiled Android APK (Release v1.1.0)
-You can directly download and install the compiled release APK built on Expo Cloud servers:
-- **Expo Build Page:** [https://expo.dev/accounts/ritesh1918/projects/vaha/builds/b5f24e6f-b06e-45cc-9407-3cbf0b295a4c](https://expo.dev/accounts/ritesh1918/projects/vaha/builds/b5f24e6f-b06e-45cc-9407-3cbf0b295a4c)
-- **Direct Build Release Artifact:** [Download VAHA v1.1.0 Android APK](https://expo.dev/accounts/ritesh1918/projects/vaha/builds/b5f24e6f-b06e-45cc-9407-3cbf0b295a4c)
+You can directly download and install the standalone release APK binary from GitHub Releases:
+- **GitHub Release v1.1.0:** [https://github.com/dharanova-code/vaha/releases/tag/v1.1.0](https://github.com/dharanova-code/vaha/releases/tag/v1.1.0)
+- **Direct APK Download:** [Download vaha-v1.1.0.apk (88.7 MB)](https://github.com/dharanova-code/vaha/releases/download/v1.1.0/vaha-v1.1.0.apk)
 
 #### 🛠️ Building / Running Locally
 1. Install Node.js (LTS version).
