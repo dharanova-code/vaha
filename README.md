@@ -15,7 +15,13 @@
 **Institution:** `Dharanova Pvt Ltd, Visakhapatnam, Andhra Pradesh, India`  
 **Developer:** `Ritesh Bonthalakoti (ritesh@dharanova.com)` — Solo Developer
 
-[📄 View Final Project Report PDF](docs/VAHA%20Report.pdf) • [📺 View Demo Video](https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f) • [📱 Download APK](#-mobile-companion-apk)
+<p align="center">
+  <a href="docs/VAHA%20Report.pdf"><img src="https://img.shields.io/badge/📄_View_Final_Report-E53E3E?style=for-the-badge&logo=adobeacrobatreader&logoColor=white" alt="View Report PDF"/></a>
+  &nbsp;
+  <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f"><img src="https://img.shields.io/badge/📺_Watch_Demo_Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Demo Video"/></a>
+  &nbsp;
+  <a href="#-mobile-companion-apk"><img src="https://img.shields.io/badge/📱_Download_App_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Mobile APK"/></a>
+</p>
 
 </div>
 

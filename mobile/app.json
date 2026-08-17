@@ -21,7 +21,14 @@
         "backgroundColor": "#FAF8F5"
       },
       "package": "com.vaha.companion",
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "notification": {
       "icon": "./assets/notification-icon.png",
@@ -48,6 +55,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a9c03a9f-c24a-49d3-805a-0e9f19793518"
+      }
+    },
+    "owner": "ritesh1918"
   }
 }
