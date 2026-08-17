@@ -20,7 +20,7 @@
   &nbsp;
   <a href="https://youtu.be/_Y_hMeHslhI?si=Uxo2WZzAGikBSO-f"><img src="https://img.shields.io/badge/📺_Watch_Demo_Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Demo Video"/></a>
   &nbsp;
-  <a href="#-mobile-companion-apk"><img src="https://img.shields.io/badge/📱_Download_App_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Mobile APK"/></a>
+  <a href="https://expo.dev/accounts/ritesh1918/projects/vaha/builds/b5f24e6f-b06e-45cc-9407-3cbf0b295a4c"><img src="https://img.shields.io/badge/📱_Download_App_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Mobile APK"/></a>
 </p>
 
 </div>
@@ -289,6 +289,13 @@ The compiled Android companion application is available in the repository:
    ```
 
 ### 3. Mobile Companion Application (React Native)
+
+#### 📥 Download Compiled Android APK (Release v1.1.0)
+You can directly download and install the compiled release APK built on Expo Cloud servers:
+- **Expo Build Page:** [https://expo.dev/accounts/ritesh1918/projects/vaha/builds/b5f24e6f-b06e-45cc-9407-3cbf0b295a4c](https://expo.dev/accounts/ritesh1918/projects/vaha/builds/b5f24e6f-b06e-45cc-9407-3cbf0b295a4c)
+- **Direct Build Release Artifact:** [Download VAHA v1.1.0 Android APK](https://expo.dev/accounts/ritesh1918/projects/vaha/builds/b5f24e6f-b06e-45cc-9407-3cbf0b295a4c)
+
+#### 🛠️ Building / Running Locally
 1. Install Node.js (LTS version).
 2. Navigate to [`mobile/`](file:///c:/Projects/vaha/mobile):
    ```bash
