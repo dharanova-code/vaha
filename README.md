@@ -49,7 +49,7 @@
 ## ⏳ Project Development Timeline
 
 <div align="center">
-  <img src="docs/design/images/timeline_water_flow.gif" alt="VAHA Project Development Timeline (May 2026 - August 2026)" width="100%" style="border-radius: 6px; border: 1px solid #E2E8F0;"/>
+  <img src="docs/design/images/timeline_water_flow.gif" alt="VAHA Project Development Timeline (May 2026 - August 2026)" width="100%"/>
 </div>
 
 ---
