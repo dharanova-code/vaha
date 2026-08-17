@@ -13,3 +13,5 @@ python/.env
 python/venv/
 mobile/android/
 mobile/.claude/
+release/
+
