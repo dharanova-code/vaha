@@ -5,23 +5,18 @@ export interface KeyValueStorage {
 }
 
 export class MMKVStorage implements KeyValueStorage {
-  private mmkv: any;
-
-  constructor() {
-    const { MMKV } = require("react-native-mmkv");
-    this.mmkv = new MMKV();
-  }
+  private storage: Record<string, string> = {};
 
   public getString(key: string): string | undefined {
-    return this.mmkv.getString(key);
+    return this.storage[key];
   }
 
   public set(key: string, value: string): void {
-    this.mmkv.set(key, value);
+    this.storage[key] = value;
   }
 
   public delete(key: string): void {
-    this.mmkv.delete(key);
+    delete this.storage[key];
   }
 }
 

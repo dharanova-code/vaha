@@ -1,0 +1,17 @@
+# Ignore non-mobile folders and large binaries for fast, clean Expo cloud builds
+docs/
+release/
+models/
+piper/
+wheels/
+edge_impulse_dataset/
+sketch/
+python/
+.agents/
+.gemini/
+.vscode/
+android/
+ios/
+node_modules/
+.expo/
+.claude/
