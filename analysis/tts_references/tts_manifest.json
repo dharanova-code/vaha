@@ -1,0 +1,74 @@
+[
+  {
+    "index": 0,
+    "text": "remember to buy milk and eggs tomorrow morning",
+    "file": "tts_ref_00.wav",
+    "voice": "Microsoft David Desktop - English (United States)"
+  },
+  {
+    "index": 1,
+    "text": "call the dentist and reschedule my appointment for next week",
+    "file": "tts_ref_01.wav",
+    "voice": "Microsoft Zira Desktop - English (United States)"
+  },
+  {
+    "index": 2,
+    "text": "the meeting with the design team got pushed to three thirty",
+    "file": "tts_ref_02.wav",
+    "voice": "Microsoft David Desktop - English (United States)"
+  },
+  {
+    "index": 3,
+    "text": "idea for the app, add a dark mode toggle in settings",
+    "file": "tts_ref_03.wav",
+    "voice": "Microsoft Zira Desktop - English (United States)"
+  },
+  {
+    "index": 4,
+    "text": "i left my charger at the office again",
+    "file": "tts_ref_04.wav",
+    "voice": "Microsoft David Desktop - English (United States)"
+  },
+  {
+    "index": 5,
+    "text": "note to self, water the plants before leaving on friday",
+    "file": "tts_ref_05.wav",
+    "voice": "Microsoft Zira Desktop - English (United States)"
+  },
+  {
+    "index": 6,
+    "text": "the client wants the proposal revised by end of day",
+    "file": "tts_ref_06.wav",
+    "voice": "Microsoft David Desktop - English (United States)"
+  },
+  {
+    "index": 7,
+    "text": "pick up dry cleaning and drop off the package at the post office",
+    "file": "tts_ref_07.wav",
+    "voice": "Microsoft Zira Desktop - English (United States)"
+  },
+  {
+    "index": 8,
+    "text": "great idea just now, a weekly digest email for the team",
+    "file": "tts_ref_08.wav",
+    "voice": "Microsoft David Desktop - English (United States)"
+  },
+  {
+    "index": 9,
+    "text": "don't forget the quarterly report is due this friday afternoon",
+    "file": "tts_ref_09.wav",
+    "voice": "Microsoft Zira Desktop - English (United States)"
+  },
+  {
+    "index": 10,
+    "text": "reminder to renew the car insurance before it expires",
+    "file": "tts_ref_10.wav",
+    "voice": "Microsoft David Desktop - English (United States)"
+  },
+  {
+    "index": 11,
+    "text": "thinking about switching the database to postgres next quarter",
+    "file": "tts_ref_11.wav",
+    "voice": "Microsoft Zira Desktop - English (United States)"
+  }
+]

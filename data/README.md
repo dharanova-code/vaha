@@ -98,6 +98,29 @@ Written by `analysis/readtvoc_logic_simulation.c`, compiled and run with `tcc` (
 | `matches_source_logic` | "yes" for all three — confirms the transcription is faithful, not that real hardware behaves this way |
 | `compiler` | `tcc`, not the Arduino toolchain |
 
+## raw/wer_latency_test_2026-10-22.csv
+
+Written by `analysis/wer_latency_test.py` on 2026-10-22, on a development computer (Intel Core i5-10210U @ 1.60 GHz, Windows build 10.0.26200, Python 3.12.10, packages in `analysis/requirements.txt`). 12 known-transcript sentences from `analysis/tts_references/` (offline Windows text-to-speech, two SAPI voices), resampled to 16,000 Hz, transcribed by both candidate models (`base.en`, `small`) using the exact decode options and post-processing `python/main.py` uses. 24 rows (12 sentences × 2 models). Not the Arduino UNO Q; not real human speech.
+
+| Column | Meaning |
+| --- | --- |
+| `run_at` | When the script ran, ISO 8601 with time zone |
+| `model` | `base.en` or `small` |
+| `model_load_s` | Time to load that model, seconds (once per model, not per sentence) |
+| `ref_index` | 0–11 |
+| `voice` | SAPI voice used for that sentence |
+| `reference_text` | The known, exact text synthesized |
+| `hypothesis_text` | What the model transcribed |
+| `audio_seconds` | Length of the synthesized audio, seconds |
+| `inference_s` | Wall-clock transcription time, seconds |
+| `ref_word_count` | Words in `reference_text` |
+| `edit_distance` | Word-level Levenshtein distance, `reference_text` vs. `hypothesis_text` |
+| `wer` | `edit_distance / ref_word_count` |
+
+## processed/wer_latency_summary.csv
+
+Written by `analysis/summarise_wer.py` from `raw/wer_latency_test_2026-10-22.csv`. One row per (model, metric): n, mean, standard deviation (sample), min, median, max, for word error rate and inference latency.
+
 ## Still needed
 
 | Needed file | What it should contain | Why |
@@ -107,3 +130,6 @@ Written by `analysis/readtvoc_logic_simulation.c`, compiled and run with `tcc` (
 | `raw/access_test_log.csv` | As `server_access_test`, but on the UNO Q from a second device on the network, before and after the per-device credential | Evidence for R3 on the device |
 | `raw/sync_timing_log.csv` (on the UNO Q, real Wi-Fi) | Per sync: timestamp, capture id, size in bytes, request and download durations in ms, session id, across several sessions | `sync_performance_test_2026-10-22.csv` is a first version of this on loopback; replaces the reported ~250 ms and ~1.5 MB/s with p50/p95/p99 and n only once it's run against real hardware over real Wi-Fi |
 | `raw/interruption_log.csv` | Per trial: interruption type (Wi-Fi drop, app closed), attempts, outcome, capture lost or duplicated | Retry and recovery behaviour |
+| `raw/ags02ma_physical_fault_test.csv` | Same propagation test as `tvoc_placeholder_propagation_2026-10-22.csv`, but with a real I2C fault induced on real AGS02MA hardware (e.g. disconnected SDA), not a synthetic value | Confirms the firmware actually produces these placeholder values in the field, which this round of testing does not establish |
+| `raw/uno_q_wer_latency_test.csv` | Same measurement as `wer_latency_test_2026-10-22.csv`, run on the Arduino UNO Q itself | The existing run's latency numbers are not representative of the target hardware |
+| `raw/real_speech_wer_test.csv` | Same measurement, with real recorded human speech under the bathroom-noise conditions used elsewhere in this series, not synthetic TTS | Synthetic speech has none of the acoustic difficulty (fan noise, echo, mic distance) real use has |
