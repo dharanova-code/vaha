@@ -1,5 +1,3 @@
-model,metric,unit,n,mean,sd,min,median,max
-base.en,word_error_rate,fraction,12,0.0227,0.0565,0.0,0.0,0.1818
-base.en,inference_latency,ms,12,2460.975,483.2129,1906.0,2308.1,3198.3
-small,word_error_rate,fraction,12,0.0151,0.0525,0.0,0.0,0.1818
-small,inference_latency,ms,12,7184.1833,595.7978,6396.9,7069.4,7967.2
+model,n_sentences,ref_words,word_edits,wer_pct,wer_ci95_low_pct,wer_ci95_high_pct,sentences_with_edits,latency_mean_s,latency_sd_s,latency_min_s,latency_median_s,latency_max_s,rtf_mean,rtf_min,rtf_max,audio_s_min,audio_s_max,model_load_s
+base.en,12,120,3,2.5,0.9,7.1,2,2.46,0.48,1.91,2.31,3.2,0.63,0.45,0.97,3.0,4.58,13.9
+small,12,120,2,1.7,0.5,5.9,1,7.18,0.6,6.4,7.07,7.97,1.85,1.52,2.42,3.0,4.58,19.4

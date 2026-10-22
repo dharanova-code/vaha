@@ -119,7 +119,7 @@ Written by `analysis/wer_latency_test.py` on 2026-10-22, on a development comput
 
 ## processed/wer_latency_summary.csv
 
-Written by `analysis/summarise_wer.py` from `raw/wer_latency_test_2026-10-22.csv`. One row per (model, metric): n, mean, standard deviation (sample), min, median, max, for word error rate and inference latency.
+Written by `analysis/summarise_wer.py` from `raw/wer_latency_test_2026-10-22.csv`. One row per model: sentences, reference words, word edits, pooled word error rate (%) with its 95 % Wilson interval (`wer_ci95_low_pct`, `wer_ci95_high_pct`; each word treated as an independent trial, so a lower bound on the uncertainty), sentences with edits, transcription time in seconds (mean, sample SD, min, median, max), real-time factor (transcription time / audio length: mean, min, max), audio length range and model load time.
 
 ## Still needed
 
