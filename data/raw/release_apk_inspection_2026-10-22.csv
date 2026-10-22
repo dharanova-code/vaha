@@ -1,0 +1,11 @@
+inspected_at,apk_file,sha256,size_bytes,version_name,check,meaning,value
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-arm64-v8a.apk,3b480803512a0023f6668d17ae9457414fb0dfb2dc1bc17e11c88ceb7a274a3d,31321291,1.1.0,manifest usesCleartextTraffic,Plain HTTP allowed (Gap 3),true
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-arm64-v8a.apk,3b480803512a0023f6668d17ae9457414fb0dfb2dc1bc17e11c88ceb7a274a3d,31321291,1.1.0,bundle string: vaha-dev-2026,Default device token compiled into the app,1
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-arm64-v8a.apk,3b480803512a0023f6668d17ae9457414fb0dfb2dc1bc17e11c88ceb7a274a3d,31321291,1.1.0,bundle string: via downloadAsync,Download code written on 2026-08-07,1
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-arm64-v8a.apk,3b480803512a0023f6668d17ae9457414fb0dfb2dc1bc17e11c88ceb7a274a3d,31321291,1.1.0,bundle string: Capture stored but device purge failed,Delete-request code written on 2026-08-07,1
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-arm64-v8a.apk,3b480803512a0023f6668d17ae9457414fb0dfb2dc1bc17e11c88ceb7a274a3d,31321291,1.1.0,bundle string: Checksum verification failed,MD5 comparison removed on 2026-08-07,0
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-armeabi-v7a.apk,70aa9db020afaf706b33630e0de1b4e77ab200cf1da648ab3dcf7015222348ec,25796733,1.1.0,manifest usesCleartextTraffic,Plain HTTP allowed (Gap 3),true
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-armeabi-v7a.apk,70aa9db020afaf706b33630e0de1b4e77ab200cf1da648ab3dcf7015222348ec,25796733,1.1.0,bundle string: vaha-dev-2026,Default device token compiled into the app,1
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-armeabi-v7a.apk,70aa9db020afaf706b33630e0de1b4e77ab200cf1da648ab3dcf7015222348ec,25796733,1.1.0,bundle string: via downloadAsync,Download code written on 2026-08-07,1
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-armeabi-v7a.apk,70aa9db020afaf706b33630e0de1b4e77ab200cf1da648ab3dcf7015222348ec,25796733,1.1.0,bundle string: Capture stored but device purge failed,Delete-request code written on 2026-08-07,1
+2026-10-22T11:43:02+05:30,vaha-companion-v1.1.0-armeabi-v7a.apk,70aa9db020afaf706b33630e0de1b4e77ab200cf1da648ab3dcf7015222348ec,25796733,1.1.0,bundle string: Checksum verification failed,MD5 comparison removed on 2026-08-07,0

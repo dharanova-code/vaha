@@ -1,0 +1,9 @@
+# Packages for analysis/server_access_test.py: the device server's own imports, at the versions tested.
+# make_diagrams.py and inspect_release_apk.py use the Python standard library only.
+fastapi==0.159.1
+starlette==1.9.0
+uvicorn==0.54.0
+pydantic==2.14.1
+python-dotenv==1.2.4
+python-multipart==0.0.32
+numpy==2.5.4

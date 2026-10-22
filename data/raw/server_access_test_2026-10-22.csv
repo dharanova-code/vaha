@@ -1,0 +1,15 @@
+run_at,server_config,case,method,path,token_sent,http_status,response_bytes,note
+2026-10-22T11:43:02+05:30,auth_on (defaults),"health, no token",GET,/api/v1/health,none,200,83,
+2026-10-22T11:43:02+05:30,auth_on (defaults),"list, no token",GET,/api/v1/captures,none,401,45,
+2026-10-22T11:43:02+05:30,auth_on (defaults),"list, wrong token",GET,/api/v1/captures,other,401,37,
+2026-10-22T11:43:02+05:30,auth_on (defaults),"list, default token",GET,/api/v1/captures,default (vaha-dev-2026),200,1288,
+2026-10-22T11:43:02+05:30,auth_on (defaults),"download, default token",GET,/api/v1/captures/28f6d156-89d5-4205-9af0-6890a7670431,default (vaha-dev-2026),200,96044,body MD5 matches audio_md5
+2026-10-22T11:43:02+05:30,auth_on (defaults),"delete, no token",DELETE,/api/v1/captures/e69ac91d-011d-434e-88f4-bf74f875e497,none,401,45,capture folder still present
+2026-10-22T11:43:02+05:30,auth_on (defaults),"delete, default token",DELETE,/api/v1/captures/28f6d156-89d5-4205-9af0-6890a7670431,default (vaha-dev-2026),200,72,capture folder removed
+2026-10-22T11:43:02+05:30,auth_on (defaults),TLS handshake on the server port,,,,,,TLS handshake failed: SSLError
+2026-10-22T11:43:02+05:30,auth_off (VAHA_AUTH_ENABLED=false),"health, no token",GET,/api/v1/health,none,200,83,
+2026-10-22T11:43:02+05:30,auth_off (VAHA_AUTH_ENABLED=false),"list, no token",GET,/api/v1/captures,none,200,1288,
+2026-10-22T11:43:02+05:30,auth_off (VAHA_AUTH_ENABLED=false),"list, no token (repeat)",GET,/api/v1/captures,none,200,1288,
+2026-10-22T11:43:02+05:30,auth_off (VAHA_AUTH_ENABLED=false),"download, no token",GET,/api/v1/captures/fd50f545-2ce4-4137-93c8-e1cc74e7b9f8,none,200,96044,body MD5 matches audio_md5
+2026-10-22T11:43:02+05:30,auth_off (VAHA_AUTH_ENABLED=false),"delete, no token",DELETE,/api/v1/captures/fd50f545-2ce4-4137-93c8-e1cc74e7b9f8,none,200,72,capture folder removed
+2026-10-22T11:43:02+05:30,auth_off (VAHA_AUTH_ENABLED=false),TLS handshake on the server port,,,,,,TLS handshake failed: SSLError
