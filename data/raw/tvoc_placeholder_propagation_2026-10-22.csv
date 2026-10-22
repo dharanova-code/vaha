@@ -1,0 +1,4 @@
+run_at,case_label,transaction_id,sent_tvoc_ppb,api_endpoint,api_reported_voc_parts_per_billion,any_error_flag_present,indistinguishable_from_real_reading
+2026-10-22T15:18:10+05:30,normal reading,3cb1c61b-00d4-4508-8ca0-ab260f6657fe,142,GET /api/v1/captures,142,no,yes
+2026-10-22T15:18:10+05:30,readTVOC() short-read placeholder (7777),bdda4c61-af4c-4908-a47f-6bc11e143646,7777,GET /api/v1/captures,7777,no,yes
+2026-10-22T15:18:10+05:30,readTVOC() transmission-error placeholder (8888+3),ec0df14f-f701-4c05-aab2-5533e45e3f31,8891,GET /api/v1/captures,8891,no,yes

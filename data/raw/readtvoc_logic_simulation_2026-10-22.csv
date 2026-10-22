@@ -1,0 +1,4 @@
+run_at,scenario,mock_setup,readtvoc_branch_taken,expected_return_value,actual_return_value,matches_source_logic,compiler
+2026-10-22T15:32:25+05:30,healthy sensor,"mock_endTransmission()=0, mock_requestFrom()=5",real ppb decoded from 5 mock bytes,142,142,yes,"tcc (Tiny C Compiler), not the Arduino toolchain"
+2026-10-22T15:32:25+05:30,I2C transmission fails,mock_endTransmission()=3 (nonzero),8888 + err,8891,8891,yes,"tcc (Tiny C Compiler), not the Arduino toolchain"
+2026-10-22T15:32:25+05:30,short I2C read,"mock_endTransmission()=0, mock_requestFrom()=2 (<5)",7777,7777,7777,yes,"tcc (Tiny C Compiler), not the Arduino toolchain"

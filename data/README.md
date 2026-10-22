@@ -68,6 +68,36 @@ Written by `analysis/sync_performance_test.py` on 2026-10-22. The device server 
 
 Written by `analysis/summarise_sync_runs.py` from `raw/sync_performance_test_2026-10-22.csv`. One row per metric: time to first byte (ms) and throughput (decimal MB/s, from `bytes` and `total_download_s`), with `n`, `mean`, `sd` (sample), `min`, `median` and `max`. Used for whitepaper Table C.2.
 
+## raw/tvoc_placeholder_propagation_2026-10-22.csv
+
+Written by `analysis/tvoc_placeholder_propagation_test.py` on 2026-10-22. The device server was run unchanged, seeded with three synthetic captures via `CaptureService.save_capture()` (one normal TVOC reading, one carrying `readTVOC()`'s short-read placeholder `7777`, one carrying its transmission-error placeholder `8888+3`), then read back through the real `GET /api/v1/captures` endpoint. Backs the sensor-bridge whitepaper's Table 5.2.
+
+| Column | Meaning |
+| --- | --- |
+| `run_at` | When the script ran, ISO 8601 with time zone |
+| `case_label` | Which of the three synthetic readings |
+| `transaction_id` | Capture's ID |
+| `sent_tvoc_ppb` | What was given to `save_capture()` |
+| `api_endpoint` | Which real endpoint was read back from |
+| `api_reported_voc_parts_per_billion` | What the API actually returned |
+| `any_error_flag_present` | Always "no" — confirms there is no flag anywhere to check |
+| `indistinguishable_from_real_reading` | "yes" if the API value matches what was sent exactly, with no marker |
+
+## raw/readtvoc_logic_simulation_2026-10-22.csv
+
+Written by `analysis/readtvoc_logic_simulation.c`, compiled and run with `tcc` (Tiny C Compiler) on 2026-10-22. `readTVOC()` (`sketch/sketch.ino`, lines 17–41) was transcribed by hand into a standalone C program, with its three `Wire` calls replaced by mock functions this harness controls, so each of its three branches could be driven on purpose. Not a build of the original `.ino`. Backs the sensor-bridge whitepaper's Table 5.3.
+
+| Column | Meaning |
+| --- | --- |
+| `run_at` | When the simulation ran, ISO 8601 with time zone |
+| `scenario` | Healthy sensor / I2C transmission fails / short I2C read |
+| `mock_setup` | What the mock `Wire` functions were set to return |
+| `readtvoc_branch_taken` | Which branch of the transcribed source this drove |
+| `expected_return_value` | What the source says that branch returns |
+| `actual_return_value` | What the compiled simulation actually returned |
+| `matches_source_logic` | "yes" for all three — confirms the transcription is faithful, not that real hardware behaves this way |
+| `compiler` | `tcc`, not the Arduino toolchain |
+
 ## Still needed
 
 | Needed file | What it should contain | Why |
