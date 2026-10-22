@@ -96,7 +96,7 @@ graph TD
 
     subgraph Mobile_App ["Mobile Companion (Expo / React Native)"]
         Webserver -->|Wi-Fi HTTP Sync| SyncService["Sync Service"]
-        SyncService -->|Verify Checksum| SQLite[("Drizzle SQLite DB")]
+        SyncService -->|Store Capture| SQLite[("Drizzle SQLite DB")]
         SQLite -->|Dynamic Card List| AppUI["React Native Viewports"]
         AppUI -->|Interactive SVG charts| GraphPanel["Telemetry Panel"]
     end
@@ -109,7 +109,7 @@ graph TD
 4. **On-Device STT**: Audio is downsampled to 16 kHz and transcribed locally using `faster-whisper` (`base.en`, int8 quantized, running on CPU).
 5. **Sensor Sync**: Environmental readings are pulled via the sketch's `sensors_get()` bridge call and packaged into a JSON metadata payload.
 6. **Local Storage**: The capture package (`audio.wav`, `transcript.json`, `metadata.json`, `checksum.md5`) is written locally to `captures/YYYY/MM/DD/uuid/` and optionally synced to Notion.
-7. **Mobile Sync**: The companion React Native app pulls the captures over local Wi-Fi, verifies the MD5 checksums, inserts records into Drizzle SQLite, and issues a purge command to clear the physical device storage.
+7. **Mobile Sync**: The companion React Native app pulls the captures over local Wi-Fi, inserts records into Drizzle SQLite, and issues a purge command to clear the physical device storage. (The app's MD5 comparison was removed when the download path was rewritten and is not currently performed — see the Device-to-app sync whitepaper.)
 
 ---
 
@@ -240,7 +240,7 @@ graph TD
 ### Testing Highlights:
 - **Verified under real bathroom noise — 34 capture trials**: Wake word and stop phrase were exercised across 34 capture attempts in an actual bathroom environment with the exhaust fan running and the tap open. Detection held reliably throughout at `0.75 / 0.80` thresholds.
 - **End-to-end flow verified**: Wake word ➔ Recording ➔ Stop phrase / VAD cutoff ➔ On-device transcription ➔ Local SQLite save ➔ Mobile sync.
-- **Checksum Verification**: Confirmed on every capture package synced to the companion app with zero corrupted transfers.
+- **Checksum Verification**: Not currently performed. The app's MD5 comparison was removed when the download path was rewritten (2026-08-07) and has not been restored; "zero corrupted transfers" is not a claim the current code supports. See the Device-to-app sync whitepaper for the finding and a live demonstration against the running server.
 
 ### Performance Metrics:
 *   **Sync-Initiation Latency**: ~250 ms average per capture package.
