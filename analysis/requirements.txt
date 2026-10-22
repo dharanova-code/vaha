@@ -3,6 +3,10 @@
 
 # server_access_test.py, sync_performance_test.py, dated_120_capture_session.py,
 # tvoc_placeholder_propagation_test.py: the device server's own imports.
+# These pins are the sync test's versions. tvoc_placeholder_propagation_test.py's
+# own run (2026-10-22) used fastapi 0.141.1, starlette 1.6.0, uvicorn 0.52.4,
+# pydantic 2.13.4, python-dotenv 1.2.2 -- see the sensor-bridge whitepaper's
+# Table 4.1 for the full, test-specific list.
 fastapi==0.159.1
 starlette==1.9.0
 uvicorn==0.54.0
